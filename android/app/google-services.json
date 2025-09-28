@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "862824702457",
+    "project_id": "microfinance-3753e",
+    "storage_bucket": "microfinance-3753e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:862824702457:android:cd5bd172f5544920005d28",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "862824702457-1faki5bgf2sblhiauqfis1sncga2el23.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mobile",
+            "certificate_hash": "edc495bc3e900b24364bf2569226bacb0d544476"
+          }
+        },
+        {
+          "client_id": "862824702457-sldad0un2uhsg6tbfhlbostj6bui450j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKrPTG_bFJZfSCr6TFrFgZSI7TEdk35Ug"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "862824702457-sldad0un2uhsg6tbfhlbostj6bui450j.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "862824702457-nmeks60f1ftn8umv11n8arevshj2klsf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.mobile"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

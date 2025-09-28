@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyB9No4ZrQG8BF122mHClDgYVc0pbJ370YA</string>
+	<key>GCM_SENDER_ID</key>
+	<string>862824702457</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.mobile</string>
+	<key>PROJECT_ID</key>
+	<string>microfinance-3753e</string>
+	<key>STORAGE_BUCKET</key>
+	<string>microfinance-3753e.firebasestorage.app</string>
+	<key>CLIENT_ID</key>
+	<string>862824702457-nmeks60f1ftn8umv11n8arevshj2klsf.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.862824702457-nmeks60f1ftn8umv11n8arevshj2klsf</string>
+	<key>IS_ADS_ENABLED</key>
+	<false/>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false/>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true/>
+	<key>IS_GCM_ENABLED</key>
+	<true/>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true/>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:862824702457:ios:8f8c756e32f776e1005d28</string>
+</dict>
+</plist>
