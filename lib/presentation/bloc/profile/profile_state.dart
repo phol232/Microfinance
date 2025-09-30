@@ -2,60 +2,51 @@ import 'package:equatable/equatable.dart';
 
 import '../../../domain/entities/user_profile.dart';
 
-/// Estados para el ProfileBloc
-abstract class ProfileState extends Equatable {
-  const ProfileState();
+enum ProfileStatus {
+  initial,
+  loading,
+  updating,
+  loaded,
+  success,
+  error,
+}
+
+/// Estado único e inmutable del `ProfileBloc`.
+class ProfileState extends Equatable {
+  const ProfileState({
+    this.status = ProfileStatus.initial,
+    this.profile,
+    this.dniExists,
+    this.errorMessage,
+  });
+
+  final ProfileStatus status;
+  final UserProfile? profile;
+  final bool? dniExists;
+  final String? errorMessage;
+
+  bool get isLoading =>
+      status == ProfileStatus.loading || status == ProfileStatus.updating;
+
+  ProfileState copyWith({
+    ProfileStatus? status,
+    UserProfile? profile,
+    bool keepProfile = true,
+    bool? dniExists,
+    bool clearDniCheck = false,
+    String? errorMessage,
+    bool clearError = false,
+  }) {
+    return ProfileState(
+      status: status ?? this.status,
+      profile: keepProfile ? (profile ?? this.profile) : profile,
+      dniExists: clearDniCheck ? null : (dniExists ?? this.dniExists),
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+    );
+  }
+
+  static const ProfileState initial = ProfileState();
 
   @override
-  List<Object?> get props => [];
-}
-
-/// Estado inicial
-class ProfileInitial extends ProfileState {
-  const ProfileInitial();
-}
-
-/// Estado de carga
-class ProfileLoading extends ProfileState {
-  const ProfileLoading();
-}
-
-/// Estado con perfil cargado
-class ProfileLoaded extends ProfileState {
-  final UserProfile profile;
-
-  const ProfileLoaded({required this.profile});
-
-  @override
-  List<Object?> get props => [profile.uid];
-}
-
-/// Estado de error
-class ProfileError extends ProfileState {
-  final String message;
-
-  const ProfileError({required this.message});
-
-  @override
-  List<Object?> get props => [message];
-}
-
-/// Estado de actualización exitosa
-class ProfileUpdateSuccess extends ProfileState {
-  final UserProfile profile;
-
-  const ProfileUpdateSuccess({required this.profile});
-
-  @override
-  List<Object?> get props => [profile.uid];
-}
-
-/// Estado de verificación de DNI
-class ProfileDniCheckResult extends ProfileState {
-  final bool exists;
-
-  const ProfileDniCheckResult({required this.exists});
-
-  @override
-  List<Object?> get props => [exists];
+  List<Object?> get props => [status, profile?.uid, dniExists, errorMessage];
 }

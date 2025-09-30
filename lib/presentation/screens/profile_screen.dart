@@ -84,31 +84,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         BlocListener<ProfileBloc, ProfileState>(
           listener: (context, state) {
-            if (state is ProfileError) {
-              _showSnackBar(state.message, isError: true);
-            } else if (state is ProfileLoaded) {
+            if (state.status == ProfileStatus.error &&
+                state.errorMessage != null) {
+              _showSnackBar(state.errorMessage!, isError: true);
+            }
+
+            final profile = state.profile;
+            if (profile != null) {
               setState(() {
-                _currentProfile = state.profile;
-                _populateControllers(state.profile);
+                _currentProfile = profile;
+                _populateControllers(profile);
+                if (state.status == ProfileStatus.success) {
+                  _isEditing = false;
+                }
               });
-            } else if (state is ProfileUpdateSuccess) {
-              setState(() {
-                _currentProfile = state.profile;
-                _isEditing = false;
-                _populateControllers(state.profile);
-              });
-              _showSnackBar(
-                'Perfil actualizado correctamente',
-                duration: const Duration(milliseconds: 250),
-              );
+
+              if (state.status == ProfileStatus.success) {
+                _showSnackBar(
+                  'Perfil actualizado correctamente',
+                  duration: const Duration(milliseconds: 250),
+                );
+              }
             }
           },
         ),
       ],
       child: BlocBuilder<ProfileBloc, ProfileState>(
         builder: (context, state) {
-          final isLoading = state is ProfileLoading;
-          
+          final isLoading = state.isLoading;
           if (isLoading && _currentProfile == null) {
             return Scaffold(
               body: Container(

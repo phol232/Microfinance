@@ -11,31 +11,33 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ProfileBloc, ProfileState>(
       builder: (context, state) {
-        final profile = switch (state) {
-          ProfileLoaded(:final profile) => profile,
-          ProfileUpdateSuccess(:final profile) => profile,
-          _ => null,
-        };
-
-        final isLoading = state is ProfileLoading && profile == null;
+        final profile = state.profile;
+        final isLoading = state.isLoading && profile == null;
         if (isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _WelcomeCard(userName: profile?.firstName ?? 'Usuario'),
-              const SizedBox(height: 24),
-              const _StatsCards(),
-              const SizedBox(height: 24),
-              const _QuickActions(),
-              const SizedBox(height: 24),
-              const _RecentActivity(),
-            ],
-          ),
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  RepaintBoundary(
+                    child: _WelcomeCard(
+                      userName: profile?.firstName ?? 'Usuario',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const RepaintBoundary(child: _StatsCards()),
+                  const SizedBox(height: 24),
+                  const RepaintBoundary(child: _QuickActions()),
+                  const SizedBox(height: 24),
+                  const RepaintBoundary(child: _RecentActivity()),
+                ]),
+              ),
+            ),
+          ],
         );
       },
     );

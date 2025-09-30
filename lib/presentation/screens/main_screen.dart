@@ -28,8 +28,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  String _appBarTitle = 'Inicio';
-  UserProfile? _userProfile;
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -40,7 +38,7 @@ class _MainScreenState extends State<MainScreen> {
     const ProfileScreen(),
   ];
 
-  final List<String> _screenTitles = [
+  final List<String> _screenTitles = const [
     'Inicio',
     'Clientes',
     'Préstamos',
@@ -48,6 +46,8 @@ class _MainScreenState extends State<MainScreen> {
     'Reportes',
     'Configuración',
   ];
+
+  String get _currentTitle => _screenTitles[_selectedIndex];
 
   @override
   void initState() {
@@ -58,9 +58,19 @@ class _MainScreenState extends State<MainScreen> {
   void _requestProfile() {
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated) {
-      context
-          .read<ProfileBloc>()
-          .add(ProfileLoadRequested(uid: authState.user.uid));
+      final profileBloc = context.read<ProfileBloc>();
+      final profileState = profileBloc.state;
+      final bool alreadyLoading =
+          profileState.isLoading && profileState.profile?.uid == authState.user.uid;
+      final bool alreadyLoaded =
+          profileState.profile?.uid == authState.user.uid &&
+          profileState.status != ProfileStatus.error;
+
+      if (alreadyLoading || alreadyLoaded) {
+        return;
+      }
+
+      profileBloc.add(ProfileLoadRequested(uid: authState.user.uid));
     }
   }
 
@@ -70,27 +80,12 @@ class _MainScreenState extends State<MainScreen> {
     final AppUser? user =
         authState is AuthAuthenticated ? authState.user : null;
 
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<AuthBloc, AuthState>(
-          listener: (context, state) {
-            if (state is AuthAuthenticated) {
-              _requestProfile();
-            } else if (state is AuthUnauthenticated) {
-              setState(() => _userProfile = null);
-            }
-          },
-        ),
-        BlocListener<ProfileBloc, ProfileState>(
-          listener: (context, state) {
-            if (state is ProfileLoaded) {
-              setState(() => _userProfile = state.profile);
-            } else if (state is ProfileUpdateSuccess) {
-              setState(() => _userProfile = state.profile);
-            }
-          },
-        ),
-      ],
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          _requestProfile();
+        }
+      },
       child: LayoutBuilder(
         builder: (context, constraints) {
           final bool isWideScreen =
@@ -110,7 +105,7 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _appBarTitle,
+          _currentTitle,
           style: AppTypography.headlineSmall.copyWith(
             color: AppColors.onSurface,
             fontWeight: FontWeight.w600,
@@ -156,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
                   child: Row(
                     children: [
                       Text(
-                        _appBarTitle,
+                        _currentTitle,
                         style: AppTypography.headlineSmall.copyWith(
                           color: AppColors.onSurface,
                           fontWeight: FontWeight.w600,
@@ -187,7 +182,6 @@ class _MainScreenState extends State<MainScreen> {
       onDestinationSelected: (index) {
         setState(() {
           _selectedIndex = index;
-          _appBarTitle = _screenTitles[index];
         });
       },
       backgroundColor: AppColors.surface,
@@ -228,7 +222,6 @@ class _MainScreenState extends State<MainScreen> {
       onDestinationSelected: (index) {
         setState(() {
           _selectedIndex = index;
-          _appBarTitle = _screenTitles[index];
         });
       },
       backgroundColor: AppColors.surface,
@@ -236,7 +229,14 @@ class _MainScreenState extends State<MainScreen> {
       labelType: NavigationRailLabelType.all,
       leading: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: _buildUserAvatar(user),
+        child: BlocSelector<ProfileBloc, ProfileState, UserProfile?>(
+          selector: (state) => state.profile,
+          builder: (context, profile) => _buildUserAvatar(
+            user,
+            profile,
+            radius: 24,
+          ),
+        ),
       ),
       trailing: Expanded(
         child: Column(
@@ -247,7 +247,6 @@ class _MainScreenState extends State<MainScreen> {
               onPressed: () {
                 setState(() {
                   _selectedIndex = 5; // Configuración
-                  _appBarTitle = _screenTitles[5];
                 });
               },
               icon: Icon(
@@ -295,7 +294,10 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildUserActions(AppUser? user) {
     return Row(
       children: [
-        _buildUserAvatar(user),
+        BlocSelector<ProfileBloc, ProfileState, UserProfile?>(
+          selector: (state) => state.profile,
+          builder: (context, profile) => _buildUserAvatar(user, profile),
+        ),
         const SizedBox(width: AppSpacing.md),
         IconButton(
           onPressed: _showLogoutDialog,
@@ -307,16 +309,22 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildUserAvatar(AppUser? user) {
+  Widget _buildUserAvatar(
+    AppUser? user,
+    UserProfile? profile, {
+    double radius = 20,
+  }) {
+    final String initials = _getInitials(user, profile: profile);
+    final String? photoUrl = profile?.photoUrl;
+
     return CircleAvatar(
-      radius: 20,
+      radius: radius,
       backgroundColor: AppColors.primary,
-      backgroundImage: _userProfile?.photoUrl != null
-          ? NetworkImage(_userProfile!.photoUrl!)
-          : null,
-      child: _userProfile?.photoUrl == null
+      backgroundImage:
+          photoUrl != null && photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+      child: (photoUrl == null || photoUrl.isEmpty)
           ? Text(
-              _getInitials(user),
+              initials,
               style: AppTypography.labelMedium.copyWith(
                 color: AppColors.onPrimary,
                 fontWeight: FontWeight.bold,
@@ -327,187 +335,210 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildDrawer(BuildContext context, AppUser? user) {
-    return Drawer(
-      backgroundColor: AppColors.surface,
-      child: Column(
-        children: [
-          // Header profesional del drawer
-          Container(
-            height: 135,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(AppSpacing.radiusXl),
-                bottomRight: Radius.circular(AppSpacing.radiusXl),
-              ),
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      buildWhen: (previous, current) => previous.profile != current.profile,
+      builder: (context, state) {
+        final profile = state.profile;
+        final displayName = profile?.fullName ?? user?.displayName ?? 'Usuario';
+        final email = profile?.email ?? user?.email ?? '';
+
+        return Drawer(
+          backgroundColor: AppColors.surface,
+          child: Column(
+            children: [
+              Container(
+                height: 135,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(AppSpacing.radiusXl),
+                    bottomRight: Radius.circular(AppSpacing.radiusXl),
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.onPrimary.withOpacity(0.3),
-                              width: 3,
+                        Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.onPrimary.withOpacity(0.3),
+                                  width: 3,
+                                ),
+                              ),
+                              child: _buildUserAvatar(
+                                user,
+                                profile,
+                                radius: 25,
+                              ),
                             ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 25,
-                            backgroundColor: AppColors.surface,
-                            backgroundImage: _userProfile?.photoUrl != null
-                                ? NetworkImage(_userProfile!.photoUrl!)
-                                : null,
-                            child: _userProfile?.photoUrl == null
-                                ? Text(
-                                    _getInitials(user),
-                                    style: AppTypography.headlineSmall.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
+                            const SizedBox(width: AppSpacing.lg),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayName,
+                                    style: AppTypography.titleLarge.copyWith(
+                                      color: AppColors.onPrimary,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                  )
-                                : null,
-                          ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    email,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: AppColors.onPrimary.withOpacity(0.8),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: AppSpacing.lg),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _userProfile?.fullName ??
-                                    user?.displayName ??
-                                    'Usuario',
-                                style: AppTypography.titleLarge.copyWith(
+                        const SizedBox(height: AppSpacing.lg),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.onPrimary.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusLg,
+                                ),
+                              ),
+                              child: Text(
+                                'Asesor financiero',
+                                style: AppTypography.labelLarge.copyWith(
                                   color: AppColors.onPrimary,
-                                  fontWeight: FontWeight.w600,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                _userProfile?.email ?? user?.email ?? '',
-                                style: AppTypography.bodyMedium.copyWith(
-                                  color: AppColors.onPrimary.withOpacity(0.8),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                setState(() => _selectedIndex = 5);
+                              },
+                              icon: const Icon(
+                                Icons.settings,
+                                color: Colors.white,
+                                size: 22,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.lg,
+                  ),
+                  children: [
+                    _buildDrawerItem(
+                      icon: Icons.home_outlined,
+                      selectedIcon: Icons.home,
+                      title: 'Inicio',
+                      index: 0,
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.people_outlined,
+                      selectedIcon: Icons.people,
+                      title: 'Clientes',
+                      index: 1,
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.account_balance_wallet_outlined,
+                      selectedIcon: Icons.account_balance_wallet,
+                      title: 'Préstamos',
+                      index: 2,
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.description_outlined,
+                      selectedIcon: Icons.description,
+                      title: 'Solicitudes',
+                      index: 3,
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.analytics_outlined,
+                      selectedIcon: Icons.analytics,
+                      title: 'Reportes',
+                      index: 4,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Divider(
+                      color: AppColors.outline.withOpacity(0.5),
+                      thickness: 1,
+                      indent: AppSpacing.lg,
+                      endIndent: AppSpacing.lg,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _buildDrawerItem(
+                      icon: Icons.settings_outlined,
+                      selectedIcon: Icons.settings,
+                      title: 'Configuración',
+                      index: 5,
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
-
-          // Opciones del menú con mejor espaciado
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.lg,
-              ),
-              child: ListView(
-                children: [
-                  const SizedBox(height: AppSpacing.md),
-                  _buildDrawerItem(
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home,
-                    title: 'Inicio',
-                    index: 0,
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.people_outlined,
-                    selectedIcon: Icons.people,
-                    title: 'Clientes',
-                    index: 1,
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.account_balance_wallet_outlined,
-                    selectedIcon: Icons.account_balance_wallet,
-                    title: 'Préstamos',
-                    index: 2,
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.description_outlined,
-                    selectedIcon: Icons.description,
-                    title: 'Solicitudes',
-                    index: 3,
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.analytics_outlined,
-                    selectedIcon: Icons.analytics,
-                    title: 'Reportes',
-                    index: 4,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Divider(
-                    color: AppColors.outline.withOpacity(0.5),
-                    thickness: 1,
-                    indent: AppSpacing.lg,
-                    endIndent: AppSpacing.lg,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _buildDrawerItem(
-                    icon: Icons.settings_outlined,
-                    selectedIcon: Icons.settings,
-                    title: 'Configuración',
-                    index: 5,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Botón de cerrar sesión rediseñado
-          Container(
-            margin: const EdgeInsets.all(AppSpacing.lg),
-            child: Material(
-              color: AppColors.error.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                onTap: () => _showLogoutDialog(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.lg,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.logout_outlined,
-                        color: AppColors.error,
-                        size: 24,
+              Container(
+                margin: const EdgeInsets.all(AppSpacing.lg),
+                child: Material(
+                  color: AppColors.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    onTap: _showLogoutDialog,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.lg,
                       ),
-                      const SizedBox(width: AppSpacing.lg),
-                      Text(
-                        'Cerrar Sesión',
-                        style: AppTypography.labelLarge.copyWith(
-                          color: AppColors.error,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.logout_outlined,
+                            color: AppColors.error,
+                            size: 24,
+                          ),
+                          const SizedBox(width: AppSpacing.lg),
+                          Text(
+                            'Cerrar Sesión',
+                            style: AppTypography.labelLarge.copyWith(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.md),
+            ],
           ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -529,10 +560,9 @@ class _MainScreenState extends State<MainScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           onTap: () {
-            setState(() {
-              _selectedIndex = index;
-              _appBarTitle = _screenTitles[index];
-            });
+            if (_selectedIndex != index) {
+              setState(() => _selectedIndex = index);
+            }
             Navigator.pop(context);
           },
           child: Padding(
@@ -589,19 +619,26 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  String _getInitials(AppUser? user) {
-    if (_userProfile != null) {
-      final firstName = _userProfile!.firstName;
-      final lastName = _userProfile!.lastName;
-      return '${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}'
-          .toUpperCase();
+  String _getInitials(AppUser? user, {UserProfile? profile}) {
+    final firstName = profile?.firstName;
+    final lastName = profile?.lastName;
+    if (firstName != null && firstName.isNotEmpty) {
+      final secondLetter = (lastName != null && lastName.isNotEmpty)
+          ? lastName[0]
+          : (firstName.length > 1 ? firstName[1] : '');
+      return '${firstName[0]}$secondLetter'.toUpperCase();
     }
 
     final displayName = user?.displayName;
     if (displayName != null && displayName.isNotEmpty) {
       final parts = displayName.split(' ');
-      return '${parts.isNotEmpty ? parts[0][0] : ''}${parts.length > 1 ? parts[1][0] : ''}'
-          .toUpperCase();
+      final first = parts.isNotEmpty ? parts[0] : '';
+      final second = parts.length > 1 ? parts[1] : '';
+      final initials =
+          '${first.isNotEmpty ? first[0] : ''}${second.isNotEmpty ? second[0] : ''}';
+      if (initials.trim().isNotEmpty) {
+        return initials.toUpperCase();
+      }
     }
 
     final email = user?.email;

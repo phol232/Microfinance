@@ -53,7 +53,7 @@ class FirebaseAuthDataSource {
       );
       final user = credential.user;
       if (user != null) {
-        await ensureUserDocuments(user);
+        unawaited(ensureUserDocuments(user));
       }
       return credential;
     } on FirebaseAuthException catch (error, stackTrace) {
@@ -229,7 +229,7 @@ class FirebaseAuthDataSource {
           final userCredential = await _auth.signInWithCredential(credential);
           final user = userCredential.user;
           if (user != null) {
-            await ensureUserDocuments(user);
+            unawaited(ensureUserDocuments(user));
           }
           return userCredential;
         case LoginStatus.cancelled:

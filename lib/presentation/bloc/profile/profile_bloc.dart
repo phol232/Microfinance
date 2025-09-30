@@ -8,7 +8,7 @@ import 'profile_state.dart';
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ProfileBloc({required AuthRepository authRepository})
       : _authRepository = authRepository,
-        super(const ProfileInitial()) {
+        super(ProfileState.initial) {
     on<ProfileLoadRequested>(_onProfileLoadRequested);
     on<ProfileUpdateRequested>(_onProfileUpdateRequested);
     on<ProfileCheckDniRequested>(_onProfileCheckDniRequested);
@@ -20,17 +20,32 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     ProfileLoadRequested event,
     Emitter<ProfileState> emit,
   ) async {
-    emit(const ProfileLoading());
+    emit(state.copyWith(
+      status: ProfileStatus.loading,
+      clearError: true,
+      clearDniCheck: true,
+    ));
 
     try {
       final profile = await _authRepository.fetchUserProfile(event.uid);
       if (profile != null) {
-        emit(ProfileLoaded(profile: profile));
+        emit(state.copyWith(
+          status: ProfileStatus.loaded,
+          profile: profile,
+          clearError: true,
+          clearDniCheck: true,
+        ));
       } else {
-        emit(const ProfileError(message: 'No se pudo cargar el perfil'));
+        emit(state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: 'No se pudo cargar el perfil',
+        ));
       }
     } catch (error) {
-      emit(ProfileError(message: 'Error al cargar perfil: $error'));
+      emit(state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: 'Error al cargar perfil: $error',
+      ));
     }
   }
 
@@ -38,21 +53,34 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     ProfileUpdateRequested event,
     Emitter<ProfileState> emit,
   ) async {
-    emit(const ProfileLoading());
+    emit(state.copyWith(
+      status: ProfileStatus.updating,
+      clearError: true,
+      clearDniCheck: true,
+    ));
 
     try {
       await _authRepository.updateUserProfile(event.uid, event.updates);
       final updatedProfile = await _authRepository.fetchUserProfile(event.uid);
 
       if (updatedProfile != null) {
-        emit(ProfileUpdateSuccess(profile: updatedProfile));
+        emit(state.copyWith(
+          status: ProfileStatus.success,
+          profile: updatedProfile,
+          clearError: true,
+          clearDniCheck: true,
+        ));
       } else {
-        emit(
-          const ProfileError(message: 'Error al recargar perfil actualizado'),
-        );
+        emit(state.copyWith(
+          status: ProfileStatus.error,
+          errorMessage: 'Error al recargar perfil actualizado',
+        ));
       }
     } catch (error) {
-      emit(ProfileError(message: 'Error al actualizar perfil: $error'));
+      emit(state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: 'Error al actualizar perfil: $error',
+      ));
     }
   }
 
@@ -62,9 +90,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     try {
       final exists = await _authRepository.checkDniExists(event.dni);
-      emit(ProfileDniCheckResult(exists: exists));
+      emit(state.copyWith(dniExists: exists, clearError: true));
     } catch (error) {
-      emit(ProfileError(message: 'Error al verificar DNI: $error'));
+      emit(state.copyWith(
+        status: ProfileStatus.error,
+        errorMessage: 'Error al verificar DNI: $error',
+      ));
     }
   }
 }
