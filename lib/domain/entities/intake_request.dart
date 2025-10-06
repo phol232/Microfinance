@@ -144,21 +144,21 @@ class ConsentInfo {
 
 class RoutingInfo {
   final String branchId;
-  final String? assignedAgentId;
+  final String? assignedUserId;
 
-  RoutingInfo({required this.branchId, this.assignedAgentId});
+  RoutingInfo({required this.branchId, this.assignedUserId});
 
   factory RoutingInfo.fromMap(Map<String, dynamic> map) {
     return RoutingInfo(
       branchId: map['branchId'] ?? '',
-      assignedAgentId: map['assignedAgentId'],
+      assignedUserId: map['assignedUserId'],
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'branchId': branchId,
-      if (assignedAgentId != null) 'assignedAgentId': assignedAgentId,
+      if (assignedUserId != null) 'assignedUserId': assignedUserId,
     };
   }
 }

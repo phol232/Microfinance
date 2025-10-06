@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// Eventos para el ProfileBloc
 abstract class ProfileEvent extends Equatable {
   const ProfileEvent();
 
@@ -8,7 +7,6 @@ abstract class ProfileEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Evento para cargar el perfil del usuario
 class ProfileLoadRequested extends ProfileEvent {
   final String uid;
 
@@ -18,18 +16,31 @@ class ProfileLoadRequested extends ProfileEvent {
   List<Object?> get props => [uid];
 }
 
-/// Evento para actualizar el perfil del usuario
 class ProfileUpdateRequested extends ProfileEvent {
   final String uid;
+  final String microfinancieraId;
+  final String membershipId;
+  final String? customerId;
   final Map<String, dynamic> updates;
 
-  const ProfileUpdateRequested({required this.uid, required this.updates});
+  const ProfileUpdateRequested({
+    required this.uid,
+    required this.microfinancieraId,
+    required this.membershipId,
+    this.customerId,
+    required this.updates,
+  });
 
   @override
-  List<Object?> get props => [uid, updates];
+  List<Object?> get props => [
+    uid,
+    microfinancieraId,
+    membershipId,
+    customerId,
+    updates,
+  ];
 }
 
-/// Evento para verificar si un DNI existe
 class ProfileCheckDniRequested extends ProfileEvent {
   final String dni;
 

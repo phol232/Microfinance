@@ -1,13 +1,17 @@
 import '../entities/app_user.dart';
 import '../entities/user_profile.dart';
+import '../entities/microfinanciera.dart';
 
-/// Abstraction for authentication related operations.
 abstract class AuthRepository {
   Stream<AppUser?> authStateChanges();
 
   AppUser? get currentUser;
 
-  Future<AppUser?> signInWithEmailAndPassword(String email, String password);
+  Future<AppUser?> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String microfinancieraId,
+  });
 
   Future<AppUser?> registerWithEmailAndPassword({
     required String email,
@@ -16,9 +20,16 @@ abstract class AuthRepository {
     required String lastName,
     required String dni,
     required String phone,
+    required String microfinancieraId,
+    List<String> roles = const ['analyst'],
   });
 
-  Future<AppUser?> signInWithGoogle();
+  Future<List<Microfinanciera>> getActiveMicrofinancieras();
+
+  Future<AppUser?> signInWithGoogle({
+    required String microfinancieraId,
+    List<String> roles = const ['analyst'],
+  });
 
   Future<AppUser?> signInWithFacebook();
 
@@ -30,7 +41,13 @@ abstract class AuthRepository {
 
   Stream<UserProfile?> watchUserProfile(String uid);
 
-  Future<void> updateUserProfile(String uid, Map<String, dynamic> updates);
+  Future<void> updateUserProfile({
+    required String uid,
+    required String microfinancieraId,
+    required String membershipId,
+    String? customerId,
+    required Map<String, dynamic> updates,
+  });
 
   Future<bool> checkDniExists(String dni);
 

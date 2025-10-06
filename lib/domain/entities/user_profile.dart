@@ -11,6 +11,10 @@ class UserProfile {
   final String? photoUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? microfinancieraId;
+  final String? membershipId;
+  final String? customerId;
+  final DateTime? lastLoginAt;
 
   UserProfile({
     required this.uid,
@@ -23,20 +27,44 @@ class UserProfile {
     this.photoUrl,
     this.createdAt,
     this.updatedAt,
+    this.microfinancieraId,
+    this.membershipId,
+    this.customerId,
+    this.lastLoginAt,
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String documentId) {
+    var firstName = _parseStringField(map['firstName']);
+    var lastName = _parseStringField(map['lastName']);
+    final fullName = _parseStringField(map['fullName']);
+
+    if (firstName.isEmpty && lastName.isEmpty && fullName.isNotEmpty) {
+      final parts = fullName.trim().split(RegExp(r'\s+'));
+      if (parts.isNotEmpty) {
+        firstName = parts.first;
+      }
+      if (parts.length > 1) {
+        lastName = parts.sublist(1).join(' ');
+      }
+    }
+
     return UserProfile(
       uid: documentId,
       email: _parseStringField(map['email']),
-      firstName: _parseStringField(map['firstName']),
-      lastName: _parseStringField(map['lastName']),
-      fullName: _parseStringField(map['fullName']),
-      dni: _parseOptionalStringField(map['dni']),
+      firstName: firstName,
+      lastName: lastName,
+      fullName: fullName,
+      dni:
+          _parseOptionalStringField(map['dni']) ??
+          _parseOptionalStringField(map['docNumber']),
       phone: _parseOptionalStringField(map['phone']),
       photoUrl: _parseOptionalStringField(map['photoUrl']),
       createdAt: _parseTimestamp(map['createdAt']),
       updatedAt: _parseTimestamp(map['updatedAt']),
+      microfinancieraId: _parseOptionalStringField(map['microfinancieraId']),
+      membershipId: _parseOptionalStringField(map['membershipId']),
+      customerId: _parseOptionalStringField(map['customerId']),
+      lastLoginAt: _parseTimestamp(map['lastLoginAt']),
     );
   }
 
@@ -89,6 +117,10 @@ class UserProfile {
       'photoUrl': photoUrl,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      'microfinancieraId': microfinancieraId,
+      'membershipId': membershipId,
+      'customerId': customerId,
+      'lastLoginAt': lastLoginAt,
     };
   }
 
@@ -103,6 +135,10 @@ class UserProfile {
     String? photoUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? microfinancieraId,
+    String? membershipId,
+    String? customerId,
+    DateTime? lastLoginAt,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -115,6 +151,10 @@ class UserProfile {
       photoUrl: photoUrl ?? this.photoUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      microfinancieraId: microfinancieraId ?? this.microfinancieraId,
+      membershipId: membershipId ?? this.membershipId,
+      customerId: customerId ?? this.customerId,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
     );
   }
 }

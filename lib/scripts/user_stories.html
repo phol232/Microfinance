@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Historias de Usuario – Microfinance MVP</title>
+<style>
+  :root{
+    --bg:#ffffff;        /* blanco */
+    --card:#f8fafc;      /* gris muy claro */
+    --head:#059669;      /* verde esmeralda */
+    --line:#e2e8f0;      /* gris claro */
+    --text:#1e293b;      /* gris oscuro */
+    --muted:#64748b;     /* gris medio */
+    --chip:#d1fae5;      /* verde muy claro */
+    --chip-t:#059669;    /* verde oscuro */
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+    color:var(--text); line-height:1.4; padding:16px;
+    font-size:13px; /* Tamaño más pequeño */
+  }
+  .wrap{max-width:1200px; margin:auto}
+  h1{font-size:clamp(18px,2.5vw,24px); margin:0 0 10px 0; font-weight:700}
+  .sub{color:var(--muted); margin:0 0 12px 0; font-size:12px}
+
+  .table{
+    width:100%; border-collapse:separate; border-spacing:0;
+    background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+  }
+  .table thead th{
+    background:var(--head);
+    color:white; text-align:left; padding:10px 12px; font-weight:600; letter-spacing:.2px;
+    font-size:12px;
+  }
+  .table thead th:first-child{width:60px}
+  .table thead th:nth-child(2){width:200px}
+  .table tbody td{
+    padding:10px 12px; border-top:1px solid var(--line); vertical-align:top;
+    font-size:11px; /* Texto más pequeño */
+  }
+  .code{
+    display:inline-block; font-weight:600; background:var(--chip); color:var(--chip-t);
+    padding:2px 6px; border-radius:12px; font-variant-numeric:tabular-nums; font-size:10px;
+  }
+  .name{font-weight:600}
+  .desc{color:var(--text); font-family:'Courier New', monospace; white-space:pre-line}
+  .mut{color:var(--muted); font-weight:500}
+  /* filas zebra suaves */
+  .table tbody tr:nth-child(even){background:rgba(0,0,0,.02)}
+  /* responsive */
+  @media (max-width:860px){
+    .table thead{display:none}
+    .table, .table tbody, .table tr, .table td{display:block; width:100%}
+    .table tr{border-top:1px solid var(--line)}
+    .table tbody td{border:0; padding:8px 12px}
+    .row-head{display:flex; align-items:center; gap:8px; margin-bottom:4px}
+    .name{font-size:14px}
+    .desc{padding-left:2px; font-family:system-ui, monospace}
+    body{font-size:12px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Historias de Usuario</h1>
+
+    <table class="table" role="table" aria-label="Historias de usuario">
+      <thead>
+        <tr>
+          <th scope="col">Código</th>
+          <th scope="col">Historia de Usuario</th>
+          <th scope="col">Criterios de Aceptación</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="code">HU01</span></td>
+          <td class="name">Registro Básico</td>
+          <td class="desc">Como Cliente
+Quiero crear una cuenta para iniciar mi solicitud
+
+Criterios de Aceptación:
+- Dado el formulario de registro
+- Cuando ingreso DNI, nombre, apellido, email, teléfono válidos
+- Y acepto términos y condiciones
+- Entonces se crea la cuenta y queda en estado "pendiente de verificación"</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU02</span></td>
+          <td class="name">Verificación OTP</td>
+          <td class="desc">Como Cliente
+Quiero validar mi email para confirmar mi identidad
+
+Criterios de Aceptación:
+- Dado que recibí un código OTP por email
+- Cuando lo ingreso correctamente antes de 10 minutos
+- Y tengo ≤3 intentos disponibles
+- Entonces mi cuenta pasa a estado "verificada"</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU03</span></td>
+          <td class="name">Pre-solicitud</td>
+          <td class="desc">Como Cliente
+Quiero enviar mis datos básicos y documentos para evaluación
+
+Criterios de Aceptación:
+- Dado el formulario de pre-solicitud
+- Cuando completo monto, plazo, ocupación, ingreso
+- Y adjunto archivos válidos (PDF/JPG ≤5MB)
+- Entonces se crea expediente en estado "received"</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU04</span></td>
+          <td class="name">Enrutamiento</td>
+          <td class="desc">Como Sistema
+Quiero asignar expedientes automáticamente
+
+Criterios de Aceptación:
+- Dado un expediente en estado "received"
+- Cuando aplico reglas de distrito → sucursal
+- Entonces se asigna a agente disponible
+- Y pasa a estado "routed"</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU05</span></td>
+          <td class="name">Bandeja del Asesor</td>
+          <td class="desc">Como Asesor
+Quiero gestionar expedientes asignados
+
+Criterios de Aceptación:
+- Dado mi bandeja de expedientes
+- Cuando tomo posesión de un expediente "routed"
+- Entonces queda bloqueado para otros asesores
+- Y pasa a estado "in_review"</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU06</span></td>
+          <td class="name">Validaciones</td>
+          <td class="desc">Como Asesor
+Quiero ver errores antes de enviar
+
+Criterios de Aceptación:
+- Dado el formulario KYC completo
+- Cuando monto/plazo/edad/cuota-ingreso no cumplen reglas
+- Entonces veo mensajes de error claros
+- Y no puedo avanzar hasta corregir</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU07</span></td>
+          <td class="name">Scoring</td>
+          <td class="desc">Como Sistema
+Quiero calcular score automáticamente
+
+Criterios de Aceptación:
+- Dado datos KYC válidos y completos
+- Cuando ejecuto modelo de scoring v1.0
+- Entonces obtengo banda (A-D) y 3 reason codes
+- En menos de 500ms</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU08</span></td>
+          <td class="name">Decisión</td>
+          <td class="desc">Como Analista
+Quiero tomar decisiones de crédito
+
+Criterios de Aceptación:
+- Dado expediente con banda calculada
+- Cuando aplico decisión (aprobar/rechazar/observar)
+- Entonces se registra: decisión, responsable, comentarios, timestamp
+- Y pasa al estado correspondiente</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU09</span></td>
+          <td class="name">Notificaciones</td>
+          <td class="desc">Como Sistema
+Quiero informar decisiones por email
+
+Criterios de Aceptación:
+- Dado cambio de estado a aprobado/rechazado/observado
+- Cuando envío email de notificación
+- Entonces registro entregabilidad
+- Y cliente recibe información clara (sin datos sensibles)</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU10</span></td>
+          <td class="name">Desembolso</td>
+          <td class="desc">Como Operaciones
+Quiero simular desembolso completo
+
+Criterios de Aceptación:
+- Dado expediente aprobado
+- Cuando ejecuto proceso de desembolso con requestId
+- Entonces genero cronograma de cuotas y asientos contables
+- Y paso a estado "disbursed" (idempotente)</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU11</span></td>
+          <td class="name">Seguimiento</td>
+          <td class="desc">Como Cliente
+Quiero consultar mi expediente con link seguro
+
+Criterios de Aceptación:
+- Dado un token de seguimiento válido (24h)
+- Cuando accedo al portal de seguimiento
+- Entonces veo estado actual y documentos pendientes
+- Sin necesidad de autenticación completa</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU12</span></td>
+          <td class="name">Reportes</td>
+          <td class="desc">Como Admin
+Quiero exportar datos operativos
+
+Criterios de Aceptación:
+- Dado filtros de fecha, sucursal, agente
+- Cuando solicito exportación
+- Entonces descargo CSV con métricas básicas
+- En formato estándar para análisis</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU13</span></td>
+          <td class="name">Auditoría</td>
+          <td class="desc">Como Auditor
+Quiero rastrear cambios sensibles
+
+Criterios de Aceptación:
+- Dado un expediente específico
+- Cuando consulto historial de auditoría
+- Entonces veo usuario, timestamp, cambios realizados
+- Con detalle de antes/después</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU14</span></td>
+          <td class="name">Catálogos</td>
+          <td class="desc">Como Admin
+Quiero mantener información maestra
+
+Criterios de Aceptación:
+- Dado el panel administrativo
+- Cuando modifico sucursales, agentes, productos
+- Entonces cambios aplican inmediatamente
+- A nuevas solicitudes y procesos activos</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU15</span></td>
+          <td class="name">Offline (Opcional)</td>
+          <td class="desc">Como Asesor
+Quiero seguir trabajando sin conexión
+
+Criterios de Aceptación:
+- Dado que no tengo conexión a internet
+- Cuando realizo cambios en expedientes
+- Entonces se guardan localmente en cola
+- Y se sincronizan automáticamente al reconectar</td>
+        </tr>
+        <tr>
+          <td><span class="code">HU16</span></td>
+          <td class="name">Anti-spam</td>
+          <td class="desc">Como Sistema
+Quiero prevenir abuso del sistema
+
+Criterios de Aceptación:
+- Dado intento de envío masivo
+- Cuando supera límites o falla CAPTCHA
+- Entonces rechazo la operación
+- Y registro motivo para análisis posterior</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

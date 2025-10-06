@@ -11,7 +11,6 @@ enum ProfileStatus {
   error,
 }
 
-/// Estado único e inmutable del `ProfileBloc`.
 class ProfileState extends Equatable {
   const ProfileState({
     this.status = ProfileStatus.initial,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../domain/entities/microfinanciera.dart';
 import '../../components/primary_button.dart';
 import '../../components/text_field_outlined.dart';
 import '../../components/app_card.dart';
@@ -10,7 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import 'register_page.dart';
-import '../splash/splash_page.dart';
+import 'role_utils.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,7 +25,17 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  List<Microfinanciera> _microfinancieras = [];
+  Microfinanciera? _selectedMicrofinanciera;
+  bool _isLoadingMicrofinancieras = false;
+
   bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMicrofinancieras();
+  }
 
   @override
   void dispose() {
@@ -33,17 +44,50 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<void> _loadMicrofinancieras() async {
+    if (!mounted) return;
+
+    if (_isLoadingMicrofinancieras) return;
+
+    setState(() {
+      _isLoadingMicrofinancieras = true;
+    });
+
+    context.read<AuthBloc>().add(const AuthLoadMicrofinancierasRequested());
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthError) {
+        if (state is AuthMicrofinancierasLoading) {
+          setState(() {
+            _isLoadingMicrofinancieras = true;
+          });
+        } else if (state is AuthMicrofinancierasLoaded) {
+          setState(() {
+            _microfinancieras = state.microfinancieras;
+            if (state.microfinancieras.length == 1) {
+              _selectedMicrofinanciera = state.microfinancieras.first;
+            } else if (_selectedMicrofinanciera != null) {
+              final exists = state.microfinancieras.any(
+                (mf) => mf.id == _selectedMicrofinanciera!.id,
+              );
+              if (!exists) {
+                _selectedMicrofinanciera = null;
+              }
+            }
+            _isLoadingMicrofinancieras = false;
+          });
+        } else if (state is AuthError) {
+          if (state.errorCode == 'microfinancieras_load_error') {
+            setState(() => _isLoadingMicrofinancieras = false);
+          }
           _showErrorSnackBar(state.message);
         } else if (state is AuthAuthenticated) {
-          // Navegar al main screen
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const SplashPage()),
-          );
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
         }
       },
       child: BlocBuilder<AuthBloc, AuthState>(
@@ -72,25 +116,31 @@ class _LoginPageState extends State<LoginPage> {
 
                     return Center(
                       child: SingleChildScrollView(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isCompact ? AppSpacing.md : AppSpacing.lg,
-                          vertical: AppSpacing.lg,
+                        physics: const ClampingScrollPhysics(),
+                        padding: EdgeInsets.only(
+                          left: isCompact ? AppSpacing.md : AppSpacing.lg,
+                          right: isCompact ? AppSpacing.md : AppSpacing.lg,
+                          top: AppSpacing.lg,
+                          bottom: AppSpacing.lg + MediaQuery.of(context).padding.bottom, 
                         ),
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          constraints: BoxConstraints(
+                            maxWidth: maxWidth,
+                            minHeight: constraints.maxHeight - (AppSpacing.lg * 2) - MediaQuery.of(context).padding.bottom,
+                          ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min, 
                             children: [
                               _buildBrandSection(isCompact: isVerySmall),
                               if (!isVerySmall)
                                 const SizedBox(height: AppSpacing.xl),
                               _buildWelcomeSection(isCompact: isVerySmall),
                               const SizedBox(height: AppSpacing.xxxl),
-
-                              // Formulario principal
                               _buildLoginForm(isLoading: isLoading),
                               const SizedBox(height: AppSpacing.lg),
                               _buildSignUpPrompt(),
+                              const SizedBox(height: AppSpacing.md),
                             ],
                           ),
                         ),
@@ -108,7 +158,6 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildBrandSection({bool isCompact = false}) {
     if (isCompact) {
-      // Layout vertical para pantallas muy pequeñas
       return Column(
         children: [
           Container(
@@ -154,7 +203,6 @@ class _LoginPageState extends State<LoginPage> {
       );
     }
 
-    // Layout horizontal para pantallas normales
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -223,6 +271,91 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Widget _buildMicrofinancieraSelector() {
+    if (_isLoadingMicrofinancieras) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Microfinanciera',
+            style: AppTypography.labelLarge.copyWith(
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.outline),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: AppSpacing.md),
+                Text('Cargando microfinancieras...'),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Microfinanciera',
+          style: AppTypography.labelLarge.copyWith(
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        DropdownButtonFormField<Microfinanciera>(
+          value: _selectedMicrofinanciera,
+          menuMaxHeight: 200, // Limit dropdown height to prevent overflow
+          decoration: InputDecoration(
+            hintText: 'Selecciona una microfinanciera',
+            prefixIcon: const Icon(Icons.business_outlined),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          items: _microfinancieras.map((microfinanciera) {
+            return DropdownMenuItem<Microfinanciera>(
+              value: microfinanciera,
+              child: Text(
+                microfinanciera.name,
+                style: AppTypography.bodyMedium,
+                overflow: TextOverflow.ellipsis, 
+                maxLines: 1,
+              ),
+            );
+          }).toList(),
+          onChanged: (Microfinanciera? microfinanciera) {
+            setState(() {
+              _selectedMicrofinanciera = microfinanciera;
+            });
+          },
+          validator: (Microfinanciera? value) {
+            if (value == null) {
+              return 'Por favor selecciona una microfinanciera';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildLoginForm({required bool isLoading}) {
     return AppCard(
       child: Form(
@@ -230,7 +363,9 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Email
+            _buildMicrofinancieraSelector(),
+            const SizedBox(height: AppSpacing.lg),
+
             TextFieldOutlined(
               label: 'Email',
               hint: 'Ingresa tu email',
@@ -241,7 +376,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // Password
             TextFieldOutlined(
               label: 'Contraseña',
               hint: 'Ingresa tu contraseña',
@@ -252,7 +386,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // Remember me & Forgot password
             Row(
               children: [
                 Checkbox(
@@ -270,7 +403,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // Login button
             PrimaryButton(
               text: 'Iniciar Sesión',
               onPressed: isLoading ? null : _signInWithEmail,
@@ -291,7 +423,6 @@ class _LoginPageState extends State<LoginPage> {
         _buildDivider(),
         const SizedBox(height: AppSpacing.lg),
 
-        // Google button
         OutlinedButton.icon(
           onPressed: isLoading ? null : _signInWithGoogle,
           icon: const Icon(Icons.login, color: Colors.red),
@@ -303,7 +434,6 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // Facebook button
         OutlinedButton.icon(
           onPressed: isLoading ? null : _signInWithFacebook,
           icon: const Icon(Icons.facebook, color: Colors.blue),
@@ -353,39 +483,53 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ============== BLoC Event Handlers ==============
-
-  void _signInWithEmail() {
+  void _signInWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Disparar evento BLoC
+    if (_selectedMicrofinanciera == null) {
+      _showErrorSnackBar('Por favor selecciona una microfinanciera');
+      return;
+    }
+
     context.read<AuthBloc>().add(
       AuthLoginRequested(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        microfinancieraId: _selectedMicrofinanciera!.id,
       ),
     );
   }
 
   void _signInWithGoogle() {
-    // Disparar evento BLoC
-    context.read<AuthBloc>().add(const AuthGoogleSignInRequested());
+    if (_selectedMicrofinanciera == null) {
+      _showErrorSnackBar('Por favor selecciona una microfinanciera');
+      return;
+    }
+
+    context.read<AuthBloc>().add(
+      AuthGoogleSignInRequested(
+        microfinancieraId: _selectedMicrofinanciera!.id,
+        roles: resolveDefaultRolesForMicrofinanciera(
+          _selectedMicrofinanciera,
+        ),
+      ),
+    );
   }
 
   void _signInWithFacebook() {
-    // Disparar evento BLoC
     context.read<AuthBloc>().add(const AuthFacebookSignInRequested());
   }
 
-  // ============== Navigation ==============
-
   void _navigateToRegister() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const RegisterPage()));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => RegisterPage(
+          selectedMicrofinanciera: _selectedMicrofinanciera,
+          availableMicrofinancieras: _microfinancieras,
+        ),
+      ),
+    );
   }
-
-  // ============== Validation ==============
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -406,8 +550,6 @@ class _LoginPageState extends State<LoginPage> {
     }
     return null;
   }
-
-  // ============== UI Helpers ==============
 
   void _showForgotPasswordInfo() {
     ScaffoldMessenger.of(context).showSnackBar(

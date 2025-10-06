@@ -1,97 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FinancialTransaction {
-  final String id;
-  final DateTime postedAt;
-  final String type; // "disbursement"|"repayment"|"fee"|"adjustment"
-  final TransactionRef ref;
-  final String? memo;
-  final int totalCents;
-
-  FinancialTransaction({
+  const FinancialTransaction({
     required this.id,
-    required this.postedAt,
+    required this.mfId,
     required this.type,
-    required this.ref,
-    this.memo,
-    required this.totalCents,
+    required this.refType,
+    required this.refId,
+    required this.debit,
+    required this.credit,
+    required this.currency,
+    required this.branchId,
+    required this.createdAt,
   });
 
-  factory FinancialTransaction.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  final String id;
+  final String mfId;
+  final String type;
+  final String refType;
+  final String refId;
+  final double debit;
+  final double credit;
+  final String currency;
+  final String branchId;
+  final DateTime createdAt;
 
+  factory FinancialTransaction.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? <String, dynamic>{};
     return FinancialTransaction(
       id: doc.id,
-      postedAt: (data['postedAt'] as Timestamp).toDate(),
+      mfId: data['mfId'] ?? '',
       type: data['type'] ?? '',
-      ref: TransactionRef.fromMap(data['ref'] ?? {}),
-      memo: data['memo'],
-      totalCents: data['totalCents'] ?? 0,
+      refType: data['refType'] ?? '',
+      refId: data['refId'] ?? '',
+      debit: (data['debit'] ?? 0).toDouble(),
+      credit: (data['credit'] ?? 0).toDouble(),
+      currency: data['currency'] ?? 'PEN',
+      branchId: data['branchId'] ?? '',
+      createdAt: _parseTimestamp(data['createdAt']),
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'postedAt': Timestamp.fromDate(postedAt),
+      'mfId': mfId,
       'type': type,
-      'ref': ref.toMap(),
-      if (memo != null) 'memo': memo,
-      'totalCents': totalCents,
+      'refType': refType,
+      'refId': refId,
+      'debit': debit,
+      'credit': credit,
+      'currency': currency,
+      'branchId': branchId,
+      'createdAt': Timestamp.fromDate(createdAt),
     };
   }
-}
 
-class TransactionRef {
-  final String? loanId;
-  final String? repaymentId;
-
-  TransactionRef({this.loanId, this.repaymentId});
-
-  factory TransactionRef.fromMap(Map<String, dynamic> map) {
-    return TransactionRef(
-      loanId: map['loanId'],
-      repaymentId: map['repaymentId'],
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      if (loanId != null) 'loanId': loanId,
-      if (repaymentId != null) 'repaymentId': repaymentId,
-    };
-  }
-}
-
-// Subcolección: entries
-class Entry {
-  final String id;
-  final String account;
-  final int debitCents;
-  final int creditCents;
-
-  Entry({
-    required this.id,
-    required this.account,
-    required this.debitCents,
-    required this.creditCents,
-  });
-
-  factory Entry.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-
-    return Entry(
-      id: doc.id,
-      account: data['account'] ?? '',
-      debitCents: data['debitCents'] ?? 0,
-      creditCents: data['creditCents'] ?? 0,
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'account': account,
-      'debitCents': debitCents,
-      'creditCents': creditCents,
-    };
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 }

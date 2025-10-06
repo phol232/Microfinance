@@ -238,27 +238,30 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
-      trailing: Expanded(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Divider(),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _selectedIndex = 5; // Configuración
-                });
-              },
-              icon: Icon(
-                _selectedIndex == 5 ? Icons.settings : Icons.settings_outlined,
-                color: _selectedIndex == 5
-                    ? AppColors.primary
-                    : AppColors.onSurfaceVariant,
+      trailing: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Divider(),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedIndex = 5; // Configuración
+                  });
+                },
+                icon: Icon(
+                  _selectedIndex == 5 ? Icons.settings : Icons.settings_outlined,
+                  color: _selectedIndex == 5
+                      ? AppColors.primary
+                      : AppColors.onSurfaceVariant,
+                ),
+                tooltip: 'Configuración',
               ),
-              tooltip: 'Configuración',
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
+            ],
+          ),
         ),
       ),
       destinations: const [
@@ -346,9 +349,13 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: AppColors.surface,
           child: Column(
             children: [
+              // Header section with profile info
               Container(
-                height: 135,
                 width: double.infinity,
+                constraints: BoxConstraints(
+                  minHeight: 120,
+                  maxHeight: MediaQuery.of(context).size.height * 0.3,
+                ),
                 decoration: BoxDecoration(
                   gradient: AppColors.primaryGradient,
                   borderRadius: const BorderRadius.only(
@@ -357,10 +364,19 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
                 child: SafeArea(
+                  top: true,
+                  left: true,
+                  right: true,
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
                           children: [
@@ -382,6 +398,7 @@ class _MainScreenState extends State<MainScreen> {
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     displayName,
@@ -446,11 +463,15 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
               ),
+
+              // Navigation items - flexible height
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.lg,
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
                   ),
                   children: [
                     _buildDrawerItem(
@@ -500,8 +521,15 @@ class _MainScreenState extends State<MainScreen> {
                   ],
                 ),
               ),
+
+              // Bottom logout section
               Container(
-                margin: const EdgeInsets.all(AppSpacing.lg),
+                margin: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.lg + MediaQuery.of(context).padding.bottom,
+                ),
                 child: Material(
                   color: AppColors.error.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -534,7 +562,6 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
             ],
           ),
         );

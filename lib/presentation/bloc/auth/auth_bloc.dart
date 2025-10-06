@@ -20,6 +20,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthAnonymousSignInRequested>(_onAuthAnonymousSignInRequested);
     on<AuthLogoutRequested>(_onAuthLogoutRequested);
     on<AuthUserChanged>(_onAuthUserChanged);
+    on<AuthLoadMicrofinancierasRequested>(_onAuthLoadMicrofinancierasRequested);
 
     _authStateSubscription = _authRepository.authStateChanges().listen(
       (user) => add(AuthUserChanged(user: user)),
@@ -47,12 +48,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
+    emit(const AuthMicrofinancierasLoading());
 
     try {
       final user = await _authRepository.signInWithEmailAndPassword(
-        event.email,
-        event.password,
+        email: event.email,
+        password: event.password,
+        microfinancieraId: event.microfinancieraId,
       );
 
       if (user != null) {
@@ -76,7 +78,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthRegisterRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
+    emit(const AuthMicrofinancierasLoading());
 
     try {
       final user = await _authRepository.registerWithEmailAndPassword(
@@ -86,6 +88,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         lastName: event.lastName,
         dni: event.dni,
         phone: event.phone,
+        microfinancieraId: event.microfinancieraId,
+        roles: event.roles,
       );
 
       if (user != null) {
@@ -115,7 +119,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
 
     try {
-      final user = await _authRepository.signInWithGoogle();
+      final user = await _authRepository.signInWithGoogle(
+        microfinancieraId: event.microfinancieraId,
+        roles: event.roles,
+      );
       if (user != null) {
         emit(AuthAuthenticated(user: user));
       } else {
@@ -242,6 +249,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     return error.toString();
+  }
+
+  Future<void> _onAuthLoadMicrofinancierasRequested(
+    AuthLoadMicrofinancierasRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthMicrofinancierasLoading());
+
+    try {
+      final microfinancieras = await _authRepository
+          .getActiveMicrofinancieras();
+      emit(AuthMicrofinancierasLoaded(microfinancieras: microfinancieras));
+    } catch (error) {
+      emit(
+        AuthError(
+          message: _getErrorMessage(error),
+          errorCode: 'microfinancieras_load_error',
+        ),
+      );
+    }
   }
 
   @override

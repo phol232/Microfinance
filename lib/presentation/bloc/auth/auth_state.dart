@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../domain/entities/app_user.dart';
+import '../../../domain/entities/microfinanciera.dart';
 
 /// Estados base para el AuthBloc
 /// Representan todos los posibles estados de la autenticación
@@ -19,6 +20,11 @@ class AuthInitial extends AuthState {
 /// Estado de carga - procesando una acción de autenticación
 class AuthLoading extends AuthState {
   const AuthLoading();
+}
+
+/// Estado de carga específico para microfinancieras
+class AuthMicrofinancierasLoading extends AuthState {
+  const AuthMicrofinancierasLoading();
 }
 
 /// Estado autenticado - usuario logueado exitosamente
@@ -55,4 +61,14 @@ class AuthRegistrationSuccess extends AuthState {
 
   @override
   List<Object?> get props => [user.uid];
+}
+
+/// Estado cuando se han cargado las microfinancieras
+class AuthMicrofinancierasLoaded extends AuthState {
+  final List<Microfinanciera> microfinancieras;
+
+  const AuthMicrofinancierasLoaded({required this.microfinancieras});
+
+  @override
+  List<Object?> get props => [microfinancieras];
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../bloc/auth/auth_bloc.dart';
@@ -11,11 +10,19 @@ import '../../components/text_field_outlined.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../splash/splash_page.dart';
 import 'login_page.dart';
+import 'role_utils.dart';
+import '../../../domain/entities/microfinanciera.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  const RegisterPage({
+    super.key,
+    this.selectedMicrofinanciera,
+    this.availableMicrofinancieras = const [],
+  });
+
+  final Microfinanciera? selectedMicrofinanciera;
+  final List<Microfinanciera> availableMicrofinancieras;
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -31,6 +38,29 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _acceptTerms = false;
+
+  List<Microfinanciera> _microfinancieras = [];
+  Microfinanciera? _selectedMicrofinanciera;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  void _initializeData() {
+    if (widget.availableMicrofinancieras.isNotEmpty) {
+      _microfinancieras = widget.availableMicrofinancieras;
+      _selectedMicrofinanciera = widget.selectedMicrofinanciera;
+    } else {
+      _loadMicrofinancieras();
+    }
+  }
+
+  Future<void> _loadMicrofinancieras() async {
+    if (!mounted) return;
+    context.read<AuthBloc>().add(const AuthLoadMicrofinancierasRequested());
+  }
 
   @override
   void dispose() {
@@ -51,9 +81,22 @@ class _RegisterPageState extends State<RegisterPage> {
           _showErrorSnackBar(state.message);
         } else if (state is AuthRegistrationSuccess ||
             state is AuthAuthenticated) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const SplashPage()),
-          );
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        } else if (state is AuthMicrofinancierasLoading) {
+          setState(() {
+            _microfinancieras = const [];
+            _selectedMicrofinanciera = null;
+          });
+        } else if (state is AuthMicrofinancierasLoaded) {
+          setState(() {
+            _microfinancieras = state.microfinancieras;
+            // Auto-select if there's only one
+            if (state.microfinancieras.length == 1) {
+              _selectedMicrofinanciera = state.microfinancieras.first;
+            }
+          });
         }
       },
       builder: (context, state) {
@@ -61,7 +104,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
         return Scaffold(
           body: Container(
-            decoration: const BoxDecoration(gradient: AppColors.surfaceGradient),
+            decoration: const BoxDecoration(
+              gradient: AppColors.surfaceGradient,
+            ),
             child: SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -89,8 +134,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           children: [
                             _buildBrandSection(isCompact: isVerySmall),
                             SizedBox(
-                              height:
-                                  isVerySmall ? AppSpacing.lg : AppSpacing.xl,
+                              height: isVerySmall
+                                  ? AppSpacing.lg
+                                  : AppSpacing.xl,
                             ),
                             _buildWelcomeSection(isCompact: isVerySmall),
                             SizedBox(
@@ -234,6 +280,87 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  Widget _buildMicrofinancieraSelector() {
+    if (_microfinancieras.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Microfinanciera',
+            style: AppTypography.labelLarge.copyWith(
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.outline),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: AppSpacing.md),
+                Text('Cargando microfinancieras...'),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Microfinanciera',
+          style: AppTypography.labelLarge.copyWith(
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        DropdownButtonFormField<Microfinanciera>(
+          value: _selectedMicrofinanciera,
+          decoration: InputDecoration(
+            hintText: 'Selecciona una microfinanciera',
+            prefixIcon: const Icon(Icons.business_outlined),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            filled: true,
+            fillColor: AppColors.surface,
+          ),
+          items: _microfinancieras.map((microfinanciera) {
+            return DropdownMenuItem<Microfinanciera>(
+              value: microfinanciera,
+              child: Text(
+                microfinanciera.name,
+                style: AppTypography.bodyMedium,
+              ),
+            );
+          }).toList(),
+          onChanged: (microfinanciera) {
+            setState(() {
+              _selectedMicrofinanciera = microfinanciera;
+            });
+          },
+          validator: (value) {
+            if (value == null) {
+              return 'Por favor selecciona una microfinanciera';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildRegisterForm(bool isLoading) {
     return AppCard(
       padding: EdgeInsets.symmetric(
@@ -245,6 +372,9 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Selector de Microfinanciera
+            _buildMicrofinancieraSelector(),
+            const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
                 Expanded(
@@ -412,8 +542,10 @@ class _RegisterPageState extends State<RegisterPage> {
     if (cleanValue.length < 8 || cleanValue.length > 12) {
       return 'DNI debe tener entre 8 y 12 caracteres';
     }
-    if (!RegExp(r'^[0-9XYZ]+[A-Z]?$', caseSensitive: false)
-        .hasMatch(cleanValue)) {
+    if (!RegExp(
+      r'^[0-9XYZ]+[A-Z]?$',
+      caseSensitive: false,
+    ).hasMatch(cleanValue)) {
       return 'Formato de DNI inválido';
     }
     return null;
@@ -430,7 +562,7 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  void _registerWithEmail() {
+  void _registerWithEmail() async {
     if (!_formKey.currentState!.validate() || !_acceptTerms) {
       if (!_acceptTerms) {
         _showErrorSnackBar('Debes aceptar los términos y condiciones.');
@@ -438,28 +570,45 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    if (_selectedMicrofinanciera == null) {
+      _showErrorSnackBar('Por favor selecciona una microfinanciera');
+      return;
+    }
+
     context.read<AuthBloc>().add(
-          AuthRegisterRequested(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            firstName: _firstNameController.text.trim(),
-            lastName: _lastNameController.text.trim(),
-            dni: _dniController.text.trim(),
-            phone: _phoneController.text.trim(),
-          ),
-        );
+      AuthRegisterRequested(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        dni: _dniController.text.trim(),
+        phone: _phoneController.text.trim(),
+        microfinancieraId: _selectedMicrofinanciera!.id,
+        roles: resolveDefaultRolesForMicrofinanciera(
+          _selectedMicrofinanciera,
+        ),
+      ),
+    );
   }
 
   void _signUpWithGoogle() {
-    context
-        .read<AuthBloc>()
-        .add(const AuthGoogleSignInRequested());
+    if (_selectedMicrofinanciera == null) {
+      _showErrorSnackBar('Por favor selecciona una microfinanciera');
+      return;
+    }
+
+    context.read<AuthBloc>().add(
+      AuthGoogleSignInRequested(
+        microfinancieraId: _selectedMicrofinanciera!.id,
+        roles: resolveDefaultRolesForMicrofinanciera(
+          _selectedMicrofinanciera,
+        ),
+      ),
+    );
   }
 
   void _signUpWithFacebook() {
-    context
-        .read<AuthBloc>()
-        .add(const AuthFacebookSignInRequested());
+    context.read<AuthBloc>().add(const AuthFacebookSignInRequested());
   }
 
   void _showErrorSnackBar(String message) {

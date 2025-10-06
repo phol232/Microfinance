@@ -20,11 +20,16 @@ class AuthCheckRequested extends AuthEvent {
 class AuthLoginRequested extends AuthEvent {
   final String email;
   final String password;
+  final String microfinancieraId;
 
-  const AuthLoginRequested({required this.email, required this.password});
+  const AuthLoginRequested({
+    required this.email,
+    required this.password,
+    required this.microfinancieraId,
+  });
 
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [email, password, microfinancieraId];
 }
 
 /// Evento para registro con datos completos
@@ -35,6 +40,8 @@ class AuthRegisterRequested extends AuthEvent {
   final String lastName;
   final String dni;
   final String phone;
+  final String microfinancieraId;
+  final List<String> roles;
 
   const AuthRegisterRequested({
     required this.email,
@@ -43,15 +50,35 @@ class AuthRegisterRequested extends AuthEvent {
     required this.lastName,
     required this.dni,
     required this.phone,
+    required this.microfinancieraId,
+    this.roles = const ['analyst'],
   });
 
   @override
-  List<Object?> get props => [email, password, firstName, lastName, dni, phone];
+  List<Object?> get props => [
+    email,
+    password,
+    firstName,
+    lastName,
+    dni,
+    phone,
+    microfinancieraId,
+    roles,
+  ];
 }
 
 /// Evento para iniciar sesión con Google
 class AuthGoogleSignInRequested extends AuthEvent {
-  const AuthGoogleSignInRequested();
+  const AuthGoogleSignInRequested({
+    required this.microfinancieraId,
+    this.roles = const ['analyst'],
+  });
+
+  final String microfinancieraId;
+  final List<String> roles;
+
+  @override
+  List<Object?> get props => [microfinancieraId, roles];
 }
 
 /// Evento para iniciar sesión con Facebook
@@ -67,6 +94,11 @@ class AuthAnonymousSignInRequested extends AuthEvent {
 /// Evento para cerrar sesión
 class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
+}
+
+/// Evento para cargar microfinancieras activas
+class AuthLoadMicrofinancierasRequested extends AuthEvent {
+  const AuthLoadMicrofinancierasRequested();
 }
 
 /// Evento cuando cambia el estado de autenticación (Firebase listener)

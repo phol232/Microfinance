@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Requerimientos NO Funcionales – Microfinance MVP</title>
+<style>
+  :root{
+    --bg:#ffffff;        /* blanco */
+    --card:#f8fafc;      /* gris muy claro */
+    --head:#dc2626;      /* rojo oscuro */
+    --line:#e2e8f0;      /* gris claro */
+    --text:#1e293b;      /* gris oscuro */
+    --muted:#64748b;     /* gris medio */
+    --chip:#fecaca;      /* rojo muy claro */
+    --chip-t:#dc2626;    /* rojo oscuro */
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+    color:var(--text); line-height:1.4; padding:16px;
+    font-size:13px; /* Tamaño más pequeño */
+  }
+  .wrap{max-width:1200px; margin:auto}
+  h1{font-size:clamp(18px,2.5vw,24px); margin:0 0 10px 0; font-weight:700}
+  .sub{color:var(--muted); margin:0 0 12px 0; font-size:12px}
+
+  .table{
+    width:100%; border-collapse:separate; border-spacing:0;
+    background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+  }
+  .table thead th{
+    background:var(--head);
+    color:white; text-align:left; padding:10px 12px; font-weight:600; letter-spacing:.2px;
+    font-size:12px;
+  }
+  .table thead th:first-child{width:60px}
+  .table thead th:nth-child(2){width:200px}
+  .table tbody td{
+    padding:10px 12px; border-top:1px solid var(--line); vertical-align:top;
+    font-size:11px; /* Texto más pequeño */
+  }
+  .code{
+    display:inline-block; font-weight:600; background:var(--chip); color:var(--chip-t);
+    padding:2px 6px; border-radius:12px; font-variant-numeric:tabular-nums; font-size:10px;
+  }
+  .name{font-weight:600}
+  .desc{color:var(--text)}
+  .mut{color:var(--muted); font-weight:500}
+  /* filas zebra suaves */
+  .table tbody tr:nth-child(even){background:rgba(0,0,0,.02)}
+  /* responsive */
+  @media (max-width:860px){
+    .table thead{display:none}
+    .table, .table tbody, .table tr, .table td{display:block; width:100%}
+    .table tr{border-top:1px solid var(--line)}
+    .table tbody td{border:0; padding:8px 12px}
+    .row-head{display:flex; align-items:center; gap:8px; margin-bottom:4px}
+    .name{font-size:14px}
+    .desc{padding-left:2px}
+    body{font-size:12px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Requerimientos NO Funcionales</h1>
+
+    <table class="table" role="table" aria-label="Requerimientos NO funcionales">
+      <thead>
+        <tr>
+          <th scope="col">Código</th>
+          <th scope="col">Requerimiento NO Funcional</th>
+          <th scope="col">Descripción / Métricas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="code">RNF01</span></td>
+          <td class="name">Rendimiento UI</td>
+          <td class="desc">Acciones críticas <3s (P95). Primer render <2s en equipos medios. Scroll fluido en listas largas. Animaciones <16ms por frame.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF02</span></td>
+          <td class="name">Backend</td>
+          <td class="desc">Scoring simulado <500ms (P95). Generación de cronograma <1s (P95). Consulta de expediente <200ms (P95). Tiempo de respuesta API <100ms (P95).</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF03</span></td>
+          <td class="name">Seguridad</td>
+          <td class="desc">JWT de corta duración (15min). HTTPS obligatorio. Sin PII innecesaria en cliente. Validación estricta de entrada. Rate limiting en APIs críticas.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF04</span></td>
+          <td class="name">Permisos</td>
+          <td class="desc">Roles jerárquicos: Cliente (solo sus datos), Asesor (expedientes asignados + sucursal), Analista (todos los expedientes + decisiones), Admin (sistema completo + configuración).</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF05</span></td>
+          <td class="name">Idempotencia</td>
+          <td class="desc">Desembolso y asientos por <code>requestId</code>. Operaciones seguras contra duplicación. Estado consistente ante fallos.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF06</span></td>
+          <td class="name">Consistencia</td>
+          <td class="desc">Transacciones atómicas en cambios de estado. Integridad referencial en relaciones. Estado consistente en reconexión.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF07</span></td>
+          <td class="name">Observabilidad</td>
+          <td class="desc">Logs estructurados con <code>correlationId</code>. Métricas: errores, latencia P95, throughput. Alertas en errores críticos. Dashboard básico de monitoreo.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF08</span></td>
+          <td class="name">Calidad</td>
+          <td class="desc">Crash-free ≥99% (medido por Firebase Crashlytics). Código cubierto ≥70% por tests. Linting estricto (sin warnings). Bundle móvil <50MB.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF09</span></td>
+          <td class="name">Accesibilidad</td>
+          <td class="desc">Texto escalable (14px mínimo). Labels claros y descriptivos. Navegación por teclado completa. Contraste ≥4.5:1 en elementos clave. Formatos regionales (Perú).</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF10</span></td>
+          <td class="name">Mantenibilidad</td>
+          <td class="desc">Linter y formatter automáticos. CI con tests unitarios clave. Documentación de APIs y reglas de negocio. Código auto-documentado.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF11</span></td>
+          <td class="name">Disponibilidad</td>
+          <td class="desc">Horario de operación: 6:00-22:00 (hora Perú). Mantenimiento fuera de horario. Reinicio sin pérdida de datos. Recuperación automática de fallos.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF12</span></td>
+          <td class="name">Backup</td>
+          <td class="desc">Backup automático cada 24h. Retención mínima 7 días. Punto de recuperación <1h. Verificación de integridad.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF13</span></td>
+          <td class="name">Telemetría UX</td>
+          <td class="desc">Embudo de conversión: <span class="mut">registro → pre-solicitud → aprobación → desembolso</span>. Tasa de abandono por etapa. Tiempo promedio por flujo.</td>
+        </tr>
+        <tr>
+          <td><span class="code">RNF14</span></td>
+          <td class="name">Anti-spam</td>
+          <td class="desc">CAPTCHA en endpoints públicos. Rate-limit por IP (máx. 3/hora). Validación estricta de entrada. Detección de bots básicos.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

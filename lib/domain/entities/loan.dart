@@ -1,256 +1,193 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Loan {
-  final String id;
-  final String customerId;
-  final String applicationId;
-  final String productId;
-  final String branchId;
-  final String? agentId;
-  final int principalCents;
-  final String currency; // "PEN"|"USD"
-  final double rateNominal;
-  final int termMonths;
-  final int graceDays;
-  final DateTime? disbursementAt;
-  final String
-  status; // "approved"|"disbursed"|"in_arrears"|"closed"|"written_off"
-  final int arrearsDays;
-  final BalancesInfo balances;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  Loan({
+  const Loan({
     required this.id,
-    required this.customerId,
+    required this.mfId,
     required this.applicationId,
     required this.productId,
-    required this.branchId,
-    this.agentId,
-    required this.principalCents,
-    required this.currency,
+    required this.customerId,
+    required this.principal,
     required this.rateNominal,
     required this.termMonths,
-    required this.graceDays,
-    this.disbursementAt,
     required this.status,
-    required this.arrearsDays,
-    required this.balances,
+    required this.branchId,
     required this.createdAt,
-    required this.updatedAt,
+    this.startDate,
+    this.nextDueDate,
+    this.outstandingPrincipal,
   });
 
-  factory Loan.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  final String id;
+  final String mfId;
+  final String applicationId;
+  final String productId;
+  final String customerId;
+  final double principal;
+  final double rateNominal;
+  final int termMonths;
+  final String status; // "active" | "closed" | "in_arrears"
+  final String branchId;
+  final DateTime createdAt;
+  final DateTime? startDate;
+  final DateTime? nextDueDate;
+  final double? outstandingPrincipal;
 
+  factory Loan.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
     return Loan(
       id: doc.id,
-      customerId: data['customerId'] ?? '',
+      mfId: data['mfId'] ?? '',
       applicationId: data['applicationId'] ?? '',
       productId: data['productId'] ?? '',
+      customerId: data['customerId'] ?? '',
+      principal: (data['principal'] ?? 0).toDouble(),
+      rateNominal: (data['rateNominal'] ?? 0).toDouble(),
+      termMonths: data['term'] ?? 0,
+      status: data['status'] ?? 'active',
       branchId: data['branchId'] ?? '',
-      agentId: data['agentId'],
-      principalCents: data['principalCents'] ?? 0,
-      currency: data['currency'] ?? 'PEN',
-      rateNominal: (data['rateNominal'] ?? 0.0).toDouble(),
-      termMonths: data['termMonths'] ?? 0,
-      graceDays: data['graceDays'] ?? 0,
-      disbursementAt: data['disbursementAt'] != null
-          ? (data['disbursementAt'] as Timestamp).toDate()
+      createdAt: _parseTimestamp(data['createdAt']),
+      startDate:
+          data['startDate'] != null ? _parseTimestamp(data['startDate']) : null,
+      nextDueDate: data['nextDueDate'] != null
+          ? _parseTimestamp(data['nextDueDate'])
           : null,
-      status: data['status'] ?? '',
-      arrearsDays: data['arrearsDays'] ?? 0,
-      balances: BalancesInfo.fromMap(data['balances'] ?? {}),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      outstandingPrincipal:
+          data['outstandingPrincipal']?.toDouble(),
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'customerId': customerId,
+      'mfId': mfId,
       'applicationId': applicationId,
       'productId': productId,
-      'branchId': branchId,
-      if (agentId != null) 'agentId': agentId,
-      'principalCents': principalCents,
-      'currency': currency,
+      'customerId': customerId,
+      'principal': principal,
       'rateNominal': rateNominal,
-      'termMonths': termMonths,
-      'graceDays': graceDays,
-      if (disbursementAt != null)
-        'disbursementAt': Timestamp.fromDate(disbursementAt!),
+      'term': termMonths,
       'status': status,
-      'arrearsDays': arrearsDays,
-      'balances': balances.toMap(),
+      'branchId': branchId,
       'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      if (startDate != null) 'startDate': Timestamp.fromDate(startDate!),
+      if (nextDueDate != null)
+        'nextDueDate': Timestamp.fromDate(nextDueDate!),
+      if (outstandingPrincipal != null)
+        'outstandingPrincipal': outstandingPrincipal,
     };
+  }
+
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 }
 
-class BalancesInfo {
-  final int principalDueCents;
-  final int interestDueCents;
-  final int feesDueCents;
-
-  BalancesInfo({
-    required this.principalDueCents,
-    required this.interestDueCents,
-    required this.feesDueCents,
-  });
-
-  factory BalancesInfo.fromMap(Map<String, dynamic> map) {
-    return BalancesInfo(
-      principalDueCents: map['principalDueCents'] ?? 0,
-      interestDueCents: map['interestDueCents'] ?? 0,
-      feesDueCents: map['feesDueCents'] ?? 0,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'principalDueCents': principalDueCents,
-      'interestDueCents': interestDueCents,
-      'feesDueCents': feesDueCents,
-    };
-  }
-}
-
-// Subcolección: schedule
-class Installment {
-  final String id;
-  final int idx;
-  final DateTime dueAt;
-  final int principalCents;
-  final int interestCents;
-  final int feeCents;
-  final int totalCents;
-  final int paidCents;
-  final String status; // "pending"|"partial"|"paid"|"overdue"
-
-  Installment({
+class LoanScheduleInstallment {
+  const LoanScheduleInstallment({
     required this.id,
-    required this.idx,
-    required this.dueAt,
-    required this.principalCents,
-    required this.interestCents,
-    required this.feeCents,
-    required this.totalCents,
-    required this.paidCents,
+    required this.installmentNo,
+    required this.dueDate,
+    required this.principalDue,
+    required this.interestDue,
+    required this.feeDue,
+    required this.totalDue,
+    required this.paidTotal,
     required this.status,
   });
 
-  factory Installment.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  final String id;
+  final int installmentNo;
+  final DateTime dueDate;
+  final double principalDue;
+  final double interestDue;
+  final double feeDue;
+  final double totalDue;
+  final double paidTotal;
+  final String status; // "due" | "paid" | "partial" | "late"
 
-    return Installment(
+  factory LoanScheduleInstallment.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? <String, dynamic>{};
+    return LoanScheduleInstallment(
       id: doc.id,
-      idx: data['idx'] ?? 0,
-      dueAt: (data['dueAt'] as Timestamp).toDate(),
-      principalCents: data['principalCents'] ?? 0,
-      interestCents: data['interestCents'] ?? 0,
-      feeCents: data['feeCents'] ?? 0,
-      totalCents: data['totalCents'] ?? 0,
-      paidCents: data['paidCents'] ?? 0,
-      status: data['status'] ?? '',
+      installmentNo: data['installmentNo'] ?? 0,
+      dueDate: Loan._parseTimestamp(data['dueDate']),
+      principalDue: (data['principalDue'] ?? 0).toDouble(),
+      interestDue: (data['interestDue'] ?? 0).toDouble(),
+      feeDue: (data['feeDue'] ?? 0).toDouble(),
+      totalDue: (data['totalDue'] ?? 0).toDouble(),
+      paidTotal: (data['paidTotal'] ?? 0).toDouble(),
+      status: data['status'] ?? 'due',
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'idx': idx,
-      'dueAt': Timestamp.fromDate(dueAt),
-      'principalCents': principalCents,
-      'interestCents': interestCents,
-      'feeCents': feeCents,
-      'totalCents': totalCents,
-      'paidCents': paidCents,
+      'installmentNo': installmentNo,
+      'dueDate': Timestamp.fromDate(dueDate),
+      'principalDue': principalDue,
+      'interestDue': interestDue,
+      'feeDue': feeDue,
+      'totalDue': totalDue,
+      'paidTotal': paidTotal,
       'status': status,
     };
   }
 }
 
-// Subcolección: repayments
-class Repayment {
-  final String id;
-  final DateTime receivedAt;
-  final int amountCents;
-  final String method; // "cash"|"transfer"|"yape"|"plin"
-  final String cashierId;
-  final String? receiptNo;
-  final List<AppliedPayment> applied;
-
-  Repayment({
+class LoanRepayment {
+  const LoanRepayment({
     required this.id,
-    required this.receivedAt,
-    required this.amountCents,
+    required this.mfId,
+    required this.loanId,
+    required this.installmentNo,
+    required this.amount,
     required this.method,
-    required this.cashierId,
-    this.receiptNo,
-    required this.applied,
+    required this.paidAt,
+    required this.receivedBy,
+    this.txId,
   });
 
-  factory Repayment.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  final String id;
+  final String mfId;
+  final String loanId;
+  final int installmentNo;
+  final double amount;
+  final String method; // "cash" | "wallet" | "bank"
+  final DateTime paidAt;
+  final String receivedBy;
+  final String? txId;
 
-    return Repayment(
+  factory LoanRepayment.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? <String, dynamic>{};
+    return LoanRepayment(
       id: doc.id,
-      receivedAt: (data['receivedAt'] as Timestamp).toDate(),
-      amountCents: data['amountCents'] ?? 0,
-      method: data['method'] ?? '',
-      cashierId: data['cashierId'] ?? '',
-      receiptNo: data['receiptNo'],
-      applied:
-          (data['applied'] as List<dynamic>?)
-              ?.map(
-                (item) => AppliedPayment.fromMap(item as Map<String, dynamic>),
-              )
-              .toList() ??
-          [],
+      mfId: data['mfId'] ?? '',
+      loanId: data['loanId'] ?? '',
+      installmentNo: data['installmentNo'] ?? 0,
+      amount: (data['amount'] ?? 0).toDouble(),
+      method: data['method'] ?? 'cash',
+      paidAt: Loan._parseTimestamp(data['paidAt']),
+      receivedBy: data['receivedBy'] ?? '',
+      txId: data['txId'],
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'receivedAt': Timestamp.fromDate(receivedAt),
-      'amountCents': amountCents,
+      'mfId': mfId,
+      'loanId': loanId,
+      'installmentNo': installmentNo,
+      'amount': amount,
       'method': method,
-      'cashierId': cashierId,
-      if (receiptNo != null) 'receiptNo': receiptNo,
-      'applied': applied.map((item) => item.toMap()).toList(),
-    };
-  }
-}
-
-class AppliedPayment {
-  final String installmentId;
-  final int principalCents;
-  final int interestCents;
-  final int feeCents;
-
-  AppliedPayment({
-    required this.installmentId,
-    required this.principalCents,
-    required this.interestCents,
-    required this.feeCents,
-  });
-
-  factory AppliedPayment.fromMap(Map<String, dynamic> map) {
-    return AppliedPayment(
-      installmentId: map['installmentId'] ?? '',
-      principalCents: map['principalCents'] ?? 0,
-      interestCents: map['interestCents'] ?? 0,
-      feeCents: map['feeCents'] ?? 0,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'installmentId': installmentId,
-      'principalCents': principalCents,
-      'interestCents': interestCents,
-      'feeCents': feeCents,
+      'paidAt': Timestamp.fromDate(paidAt),
+      'receivedBy': receivedBy,
+      if (txId != null) 'txId': txId,
     };
   }
 }

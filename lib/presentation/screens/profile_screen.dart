@@ -53,8 +53,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated) {
       context.read<ProfileBloc>().add(
-            ProfileLoadRequested(uid: authState.user.uid),
-          );
+        ProfileLoadRequested(uid: authState.user.uid),
+      );
     }
   }
 
@@ -115,7 +115,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (isLoading && _currentProfile == null) {
             return Scaffold(
               body: Container(
-                decoration: const BoxDecoration(gradient: AppColors.surfaceGradient),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.surfaceGradient,
+                ),
                 child: const Center(child: CircularProgressIndicator()),
               ),
             );
@@ -123,7 +125,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           return Scaffold(
             body: Container(
-              decoration: const BoxDecoration(gradient: AppColors.surfaceGradient),
+              decoration: const BoxDecoration(
+                gradient: AppColors.surfaceGradient,
+              ),
               child: SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -189,11 +193,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: AppColors.onPrimary.withValues(alpha: 0.2),
-                  backgroundImage: _currentProfile?.photoUrl != null &&
+                  backgroundImage:
+                      _currentProfile?.photoUrl != null &&
                           _currentProfile!.photoUrl!.isNotEmpty
                       ? NetworkImage(_currentProfile!.photoUrl!)
                       : null,
-                  child: _currentProfile?.photoUrl == null ||
+                  child:
+                      _currentProfile?.photoUrl == null ||
                           _currentProfile!.photoUrl!.isEmpty
                       ? Text(
                           _currentProfile?.firstName.isNotEmpty == true
@@ -284,7 +290,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _buildStatItem('Años', '2+', Icons.calendar_today_outlined),
           _buildVerticalDivider(),
-          _buildStatItem('Préstamos', '5', Icons.account_balance_wallet_outlined),
+          _buildStatItem(
+            'Préstamos',
+            '5',
+            Icons.account_balance_wallet_outlined,
+          ),
           _buildVerticalDivider(),
           _buildStatItem('Estado', 'Activo', Icons.verified_outlined),
         ],
@@ -295,11 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(
-          icon,
-          color: AppColors.onPrimary.withValues(alpha: 0.9),
-          size: 20,
-        ),
+        Icon(icon, color: AppColors.onPrimary.withValues(alpha: 0.9), size: 20),
         const SizedBox(height: 4),
         Text(
           value,
@@ -401,7 +407,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.2), width: 1),
+        border: Border.all(
+          color: AppColors.outline.withValues(alpha: 0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.outline.withValues(alpha: 0.1),
@@ -472,9 +481,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Icon(
               icon,
               size: 18,
-              color: isEmpty
-                  ? AppColors.onSurfaceVariant
-                  : AppColors.primary,
+              color: isEmpty ? AppColors.onSurfaceVariant : AppColors.primary,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -513,7 +520,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.2), width: 1),
+        border: Border.all(
+          color: AppColors.outline.withValues(alpha: 0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.outline.withValues(alpha: 0.1),
@@ -696,6 +706,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authState = context.read<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return;
     final uid = authState.user.uid;
+    final profile = _currentProfile;
+    if (profile?.microfinancieraId == null || profile?.membershipId == null) {
+      _showSnackBar(
+        'No se encontró la microfinanciera asociada al usuario.',
+        isError: true,
+      );
+      return;
+    }
 
     // Verificar DNI duplicado solo si cambió
     final newDni = _dniController.text.trim();
@@ -720,8 +738,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Disparar evento BLoC
     context.read<ProfileBloc>().add(
-          ProfileUpdateRequested(uid: uid, updates: updates),
-        );
+      ProfileUpdateRequested(
+        uid: uid,
+        microfinancieraId: profile!.microfinancieraId!,
+        membershipId: profile.membershipId!,
+        customerId: profile.customerId,
+        updates: updates,
+      ),
+    );
   }
 
   void _startEditing() {
@@ -746,7 +770,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  void _showSnackBar(String message, {bool isError = false, Duration? duration}) {
+  void _showSnackBar(
+    String message, {
+    bool isError = false,
+    Duration? duration,
+  }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
