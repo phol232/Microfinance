@@ -39,7 +39,19 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Environment variables and secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+
+# Firebase configuration (if not using .env)
+firebase.json
+.firebase/
+firebase-debug.log
+
+# API keys and secrets (if stored elsewhere)
+*.key
+*.pem
+secrets.json
