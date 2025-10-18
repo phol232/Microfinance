@@ -147,28 +147,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthFacebookSignInRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-
-    try {
-      final user = await _authRepository.signInWithFacebook();
-      if (user != null) {
-        emit(AuthAuthenticated(user: user));
-      } else {
-        emit(
-          const AuthError(
-            message: 'Error al iniciar sesión con Facebook.',
-            errorCode: 'facebook_signin_failed',
-          ),
-        );
-      }
-    } catch (error) {
-      emit(
-        AuthError(
-          message: _getErrorMessage(error),
-          errorCode: 'facebook_signin_error',
-        ),
-      );
-    }
+    // Facebook login temporalmente deshabilitado
+    emit(
+      const AuthError(
+        message: 'El inicio de sesión con Facebook no está disponible.',
+        errorCode: 'facebook_disabled',
+      ),
+    );
   }
 
   Future<void> _onAuthAnonymousSignInRequested(

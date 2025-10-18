@@ -121,16 +121,21 @@ class _LoginPageState extends State<LoginPage> {
                           left: isCompact ? AppSpacing.md : AppSpacing.lg,
                           right: isCompact ? AppSpacing.md : AppSpacing.lg,
                           top: AppSpacing.lg,
-                          bottom: AppSpacing.lg + MediaQuery.of(context).padding.bottom, 
+                          bottom:
+                              AppSpacing.lg +
+                              MediaQuery.of(context).padding.bottom,
                         ),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
                             maxWidth: maxWidth,
-                            minHeight: constraints.maxHeight - (AppSpacing.lg * 2) - MediaQuery.of(context).padding.bottom,
+                            minHeight:
+                                constraints.maxHeight -
+                                (AppSpacing.lg * 2) -
+                                MediaQuery.of(context).padding.bottom,
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min, 
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildBrandSection(isCompact: isVerySmall),
                               if (!isVerySmall)
@@ -317,7 +322,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: AppSpacing.xs),
         DropdownButtonFormField<Microfinanciera>(
-          value: _selectedMicrofinanciera,
+          initialValue: _selectedMicrofinanciera,
           menuMaxHeight: 200, // Limit dropdown height to prevent overflow
           decoration: InputDecoration(
             hintText: 'Selecciona una microfinanciera',
@@ -327,7 +332,10 @@ class _LoginPageState extends State<LoginPage> {
             ),
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
           ),
           items: _microfinancieras.map((microfinanciera) {
             return DropdownMenuItem<Microfinanciera>(
@@ -335,7 +343,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Text(
                 microfinanciera.name,
                 style: AppTypography.bodyMedium,
-                overflow: TextOverflow.ellipsis, 
+                overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
             );
@@ -509,15 +517,16 @@ class _LoginPageState extends State<LoginPage> {
     context.read<AuthBloc>().add(
       AuthGoogleSignInRequested(
         microfinancieraId: _selectedMicrofinanciera!.id,
-        roles: resolveDefaultRolesForMicrofinanciera(
-          _selectedMicrofinanciera,
-        ),
+        roles: resolveDefaultRolesForMicrofinanciera(_selectedMicrofinanciera),
       ),
     );
   }
 
   void _signInWithFacebook() {
-    context.read<AuthBloc>().add(const AuthFacebookSignInRequested());
+    // Facebook login temporalmente deshabilitado
+    _showErrorSnackBar(
+      'El inicio de sesión con Facebook estará disponible próximamente',
+    );
   }
 
   void _navigateToRegister() {

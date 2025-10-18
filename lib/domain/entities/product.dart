@@ -21,7 +21,7 @@ class Product {
   final String mfId;
   final String code;
   final String name;
-  final String interestType; // "flat" | "declining"
+  final String interestType;
   final double rateNominal;
   final int termMin;
   final int termMax;
@@ -45,8 +45,9 @@ class Product {
       amountMin: (data['amountMin'] ?? 0).toDouble(),
       amountMax: (data['amountMax'] ?? 0).toDouble(),
       fees: Map<String, dynamic>.from(data['fees'] ?? <String, dynamic>{}),
-      penalties:
-          Map<String, dynamic>.from(data['penalties'] ?? <String, dynamic>{}),
+      penalties: Map<String, dynamic>.from(
+        data['penalties'] ?? <String, dynamic>{},
+      ),
       createdAt: _parseTimestamp(data['createdAt']),
     );
   }

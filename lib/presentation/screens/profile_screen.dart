@@ -124,6 +124,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           return Scaffold(
+            appBar: AppBar(
+              title: const Text('Mi Perfil'),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
             body: Container(
               decoration: const BoxDecoration(
                 gradient: AppColors.surfaceGradient,

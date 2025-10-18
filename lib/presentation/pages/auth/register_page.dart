@@ -326,7 +326,7 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         const SizedBox(height: AppSpacing.xs),
         DropdownButtonFormField<Microfinanciera>(
-          value: _selectedMicrofinanciera,
+          initialValue: _selectedMicrofinanciera,
           decoration: InputDecoration(
             hintText: 'Selecciona una microfinanciera',
             prefixIcon: const Icon(Icons.business_outlined),
@@ -584,9 +584,7 @@ class _RegisterPageState extends State<RegisterPage> {
         dni: _dniController.text.trim(),
         phone: _phoneController.text.trim(),
         microfinancieraId: _selectedMicrofinanciera!.id,
-        roles: resolveDefaultRolesForMicrofinanciera(
-          _selectedMicrofinanciera,
-        ),
+        roles: resolveDefaultRolesForMicrofinanciera(_selectedMicrofinanciera),
       ),
     );
   }
@@ -600,15 +598,16 @@ class _RegisterPageState extends State<RegisterPage> {
     context.read<AuthBloc>().add(
       AuthGoogleSignInRequested(
         microfinancieraId: _selectedMicrofinanciera!.id,
-        roles: resolveDefaultRolesForMicrofinanciera(
-          _selectedMicrofinanciera,
-        ),
+        roles: resolveDefaultRolesForMicrofinanciera(_selectedMicrofinanciera),
       ),
     );
   }
 
   void _signUpWithFacebook() {
-    context.read<AuthBloc>().add(const AuthFacebookSignInRequested());
+    // Facebook login temporalmente deshabilitado
+    _showErrorSnackBar(
+      'El registro con Facebook estará disponible próximamente',
+    );
   }
 
   void _showErrorSnackBar(String message) {

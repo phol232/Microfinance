@@ -13,11 +13,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'applications_screen.dart';
-import 'clients_screen.dart';
 import 'home_screen.dart';
 import 'loans_screen.dart';
-import 'profile_screen.dart';
 import 'reports_screen.dart';
+import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -31,18 +30,16 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const ClientsScreen(),
-    const LoansScreen(),
     const ApplicationsScreen(),
+    const LoansScreen(),
     const ReportsScreen(),
-    const ProfileScreen(),
+    const SettingsScreen(), // Configuración
   ];
 
   final List<String> _screenTitles = const [
     'Inicio',
-    'Clientes',
-    'Préstamos',
     'Solicitudes',
+    'Préstamos',
     'Reportes',
     'Configuración',
   ];
@@ -61,7 +58,8 @@ class _MainScreenState extends State<MainScreen> {
       final profileBloc = context.read<ProfileBloc>();
       final profileState = profileBloc.state;
       final bool alreadyLoading =
-          profileState.isLoading && profileState.profile?.uid == authState.user.uid;
+          profileState.isLoading &&
+          profileState.profile?.uid == authState.user.uid;
       final bool alreadyLoaded =
           profileState.profile?.uid == authState.user.uid &&
           profileState.status != ProfileStatus.error;
@@ -77,8 +75,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
-    final AppUser? user =
-        authState is AuthAuthenticated ? authState.user : null;
+    final AppUser? user = authState is AuthAuthenticated
+        ? authState.user
+        : null;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -120,8 +119,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       drawer: _buildDrawer(context, user),
       body: IndexedStack(index: _selectedIndex, children: _screens),
-      bottomNavigationBar:
-          _selectedIndex < 5 ? _buildBottomNavigation() : null,
+      bottomNavigationBar: _selectedIndex < 5 ? _buildBottomNavigation() : null,
     );
   }
 
@@ -193,9 +191,9 @@ class _MainScreenState extends State<MainScreen> {
           label: 'Inicio',
         ),
         const NavigationDestination(
-          icon: Icon(Icons.people_outlined),
-          selectedIcon: Icon(Icons.people),
-          label: 'Clientes',
+          icon: Icon(Icons.description_outlined),
+          selectedIcon: Icon(Icons.description),
+          label: 'Solicitudes',
         ),
         const NavigationDestination(
           icon: Icon(Icons.account_balance_wallet_outlined),
@@ -203,14 +201,14 @@ class _MainScreenState extends State<MainScreen> {
           label: 'Préstamos',
         ),
         const NavigationDestination(
-          icon: Icon(Icons.description_outlined),
-          selectedIcon: Icon(Icons.description),
-          label: 'Solicitudes',
-        ),
-        const NavigationDestination(
           icon: Icon(Icons.analytics_outlined),
           selectedIcon: Icon(Icons.analytics),
           label: 'Reportes',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.settings_outlined),
+          selectedIcon: Icon(Icons.settings),
+          label: 'Config',
         ),
       ],
     );
@@ -231,11 +229,8 @@ class _MainScreenState extends State<MainScreen> {
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
         child: BlocSelector<ProfileBloc, ProfileState, UserProfile?>(
           selector: (state) => state.profile,
-          builder: (context, profile) => _buildUserAvatar(
-            user,
-            profile,
-            radius: 24,
-          ),
+          builder: (context, profile) =>
+              _buildUserAvatar(user, profile, radius: 24),
         ),
       ),
       trailing: Align(
@@ -253,7 +248,9 @@ class _MainScreenState extends State<MainScreen> {
                   });
                 },
                 icon: Icon(
-                  _selectedIndex == 5 ? Icons.settings : Icons.settings_outlined,
+                  _selectedIndex == 5
+                      ? Icons.settings
+                      : Icons.settings_outlined,
                   color: _selectedIndex == 5
                       ? AppColors.primary
                       : AppColors.onSurfaceVariant,
@@ -323,8 +320,9 @@ class _MainScreenState extends State<MainScreen> {
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.primary,
-      backgroundImage:
-          photoUrl != null && photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+      backgroundImage: photoUrl != null && photoUrl.isNotEmpty
+          ? NetworkImage(photoUrl)
+          : null,
       child: (photoUrl == null || photoUrl.isEmpty)
           ? Text(
               initials,
@@ -413,7 +411,9 @@ class _MainScreenState extends State<MainScreen> {
                                   Text(
                                     email,
                                     style: AppTypography.bodyMedium.copyWith(
-                                      color: AppColors.onPrimary.withOpacity(0.8),
+                                      color: AppColors.onPrimary.withOpacity(
+                                        0.8,
+                                      ),
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -448,7 +448,9 @@ class _MainScreenState extends State<MainScreen> {
                             IconButton(
                               onPressed: () {
                                 Navigator.pop(context);
-                                setState(() => _selectedIndex = 5);
+                                setState(
+                                  () => _selectedIndex = 4,
+                                ); // Configuración
                               },
                               icon: const Icon(
                                 Icons.settings,
@@ -481,9 +483,9 @@ class _MainScreenState extends State<MainScreen> {
                       index: 0,
                     ),
                     _buildDrawerItem(
-                      icon: Icons.people_outlined,
-                      selectedIcon: Icons.people,
-                      title: 'Clientes',
+                      icon: Icons.description_outlined,
+                      selectedIcon: Icons.description,
+                      title: 'Solicitudes',
                       index: 1,
                     ),
                     _buildDrawerItem(
@@ -493,16 +495,10 @@ class _MainScreenState extends State<MainScreen> {
                       index: 2,
                     ),
                     _buildDrawerItem(
-                      icon: Icons.description_outlined,
-                      selectedIcon: Icons.description,
-                      title: 'Solicitudes',
-                      index: 3,
-                    ),
-                    _buildDrawerItem(
                       icon: Icons.analytics_outlined,
                       selectedIcon: Icons.analytics,
                       title: 'Reportes',
-                      index: 4,
+                      index: 3,
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     Divider(
@@ -516,7 +512,7 @@ class _MainScreenState extends State<MainScreen> {
                       icon: Icons.settings_outlined,
                       selectedIcon: Icons.settings,
                       title: 'Configuración',
-                      index: 5,
+                      index: 4,
                     ),
                   ],
                 ),
@@ -691,9 +687,7 @@ class _MainScreenState extends State<MainScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                context
-                    .read<AuthBloc>()
-                    .add(const AuthLogoutRequested());
+                context.read<AuthBloc>().add(const AuthLogoutRequested());
               },
               child: const Text(
                 'Cerrar Sesión',

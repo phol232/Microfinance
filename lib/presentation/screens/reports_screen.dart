@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../data/datasources/backend_api_datasource.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -8,6 +10,13 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  // Ampliar rango por defecto a 1 año para capturar todas las solicitudes
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 365));
+  DateTime _endDate = DateTime.now().add(const Duration(days: 1));
+  bool _isLoading = false;
+  List<dynamic>? _reportData;
+  Map<String, dynamic>? _metrics;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -28,32 +37,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Resumen financiero
-            _buildFinancialSummary(),
+            // Filtros de fecha
+            _buildDateFilters(),
+            const SizedBox(height: 16),
+
+            // Botones de acción
+            _buildActionButtons(),
             const SizedBox(height: 24),
 
-            // Tipos de reportes
-            _buildReportTypes(),
-            const SizedBox(height: 24),
+            // Métricas
+            if (_metrics != null) ...[
+              _buildMetrics(),
+              const SizedBox(height: 24),
+            ],
 
-            // Reportes recientes
-            _buildRecentReports(),
+            // Tabla de datos
+            if (_reportData != null) _buildReportTable(),
+
+            // Loading
+            if (_isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Generar nuevo reporte próximamente')),
-          );
-        },
-        icon: const Icon(Icons.analytics),
-        label: const Text('Nuevo Reporte'),
       ),
     );
   }
 
-  Widget _buildFinancialSummary() {
+  Widget _buildDateFilters() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -61,53 +76,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Resumen Financiero',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              'Período del Reporte',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: _buildSummaryItem(
-                    title: 'Total Prestado',
-                    value: '€125,000',
-                    trend: '+12%',
-                    trendColor: Colors.green,
-                    icon: Icons.trending_up,
+                  child: _buildDateButton(
+                    label: 'Desde',
+                    date: _startDate,
+                    onTap: () => _selectDate(context, true),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildSummaryItem(
-                    title: 'Cobrado',
-                    value: '€98,500',
-                    trend: '+8%',
-                    trendColor: Colors.green,
-                    icon: Icons.attach_money,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryItem(
-                    title: 'Pendiente',
-                    value: '€26,500',
-                    trend: '-3%',
-                    trendColor: Colors.orange,
-                    icon: Icons.schedule,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSummaryItem(
-                    title: 'Morosidad',
-                    value: '2.1%',
-                    trend: '-0.5%',
-                    trendColor: Colors.green,
-                    icon: Icons.warning,
+                  child: _buildDateButton(
+                    label: 'Hasta',
+                    date: _endDate,
+                    onTap: () => _selectDate(context, false),
                   ),
                 ),
               ],
@@ -118,46 +105,164 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildSummaryItem({
-    required String title,
-    required String value,
-    required String trend,
-    required Color trendColor,
-    required IconData icon,
+  Widget _buildDateButton({
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              DateFormat('dd/MM/yyyy').format(date),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _generateReport,
+                icon: const Icon(Icons.assessment),
+                label: const Text('Generar Reporte'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
                 ),
               ),
-            ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _isLoading ? null : _loadMetrics,
+                icon: const Icon(Icons.analytics),
+                label: const Text('Ver Métricas'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Botón de debug
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _debugCount,
+            icon: const Icon(Icons.bug_report),
+            label: const Text('Debug: Ver Total de Solicitudes'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.all(12),
+              foregroundColor: Colors.orange,
+            ),
           ),
-          const SizedBox(height: 8),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetrics() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Métricas de Conversión',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            _buildMetricRow(
+              'Total Solicitudes',
+              _metrics!['totalApplications'].toString(),
+              Icons.description,
+              Colors.blue,
+            ),
+            _buildMetricRow(
+              'Aprobadas',
+              _metrics!['approved'].toString(),
+              Icons.check_circle,
+              Colors.green,
+            ),
+            _buildMetricRow(
+              'Rechazadas',
+              _metrics!['rejected'].toString(),
+              Icons.cancel,
+              Colors.red,
+            ),
+            _buildMetricRow(
+              'Desembolsadas',
+              _metrics!['disbursed'].toString(),
+              Icons.attach_money,
+              Colors.purple,
+            ),
+            const Divider(height: 24),
+            _buildMetricRow(
+              'Tasa de Conversión',
+              '${(_metrics!['conversionRate'] * 100).toStringAsFixed(1)}%',
+              Icons.trending_up,
+              Colors.orange,
+            ),
+            _buildMetricRow(
+              'Tiempo Promedio',
+              '${_metrics!['avgProcessingDays'].toStringAsFixed(1)} días',
+              Icons.schedule,
+              Colors.teal,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricRow(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
           Text(
             value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            trend,
             style: TextStyle(
-              fontSize: 12,
-              color: trendColor,
-              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
@@ -165,182 +270,279 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildReportTypes() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Tipos de Reportes',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _buildReportTypeCard(
-              title: 'Cartera',
-              subtitle: 'Análisis de préstamos',
-              icon: Icons.pie_chart,
-              color: Colors.blue,
-            ),
-            _buildReportTypeCard(
-              title: 'Clientes',
-              subtitle: 'Perfiles y actividad',
-              icon: Icons.people,
-              color: Colors.green,
-            ),
-            _buildReportTypeCard(
-              title: 'Morosidad',
-              subtitle: 'Pagos atrasados',
-              icon: Icons.warning_amber,
-              color: Colors.orange,
-            ),
-            _buildReportTypeCard(
-              title: 'Financiero',
-              subtitle: 'Ingresos y gastos',
-              icon: Icons.account_balance,
-              color: Colors.purple,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReportTypeCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-  }) {
+  Widget _buildReportTable() {
     return Card(
-      child: InkWell(
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Generar reporte de $title próximamente')),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentReports() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Reportes Recientes',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-
-        _buildReportItem(
-          title: 'Reporte Mensual - Septiembre 2024',
-          type: 'Cartera General',
-          date: '26 Sep 2024',
-          icon: Icons.description,
-        ),
-        _buildReportItem(
-          title: 'Análisis de Morosidad',
-          type: 'Riesgo',
-          date: '20 Sep 2024',
-          icon: Icons.warning,
-        ),
-        _buildReportItem(
-          title: 'Performance de Clientes',
-          type: 'Clientes',
-          date: '15 Sep 2024',
-          icon: Icons.people,
-        ),
-
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(
-                  Icons.analytics_outlined,
-                  size: 64,
-                  color: Colors.grey,
-                ),
-                const SizedBox(height: 16),
                 const Text(
-                  'Datos de demostración',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  'Solicitudes',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Los reportes mostrados son de ejemplo. Conecta con tu sistema para generar reportes reales.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                  textAlign: TextAlign.center,
+                Text(
+                  '${_reportData!.length} registros',
+                  style: TextStyle(color: Colors.grey.shade600),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Cliente')),
+                  DataColumn(label: Text('DNI')),
+                  DataColumn(label: Text('Monto')),
+                  DataColumn(label: Text('Estado')),
+                  DataColumn(label: Text('Banda')),
+                ],
+                rows: _reportData!.map((app) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(app['customerName'] ?? 'N/A')),
+                      DataCell(Text(app['dni'] ?? 'N/A')),
+                      DataCell(
+                        Text(
+                          'S/ ${app['loanAmount']?.toStringAsFixed(0) ?? '0'}',
+                        ),
+                      ),
+                      DataCell(_buildStatusChip(app['status'])),
+                      DataCell(Text(app['scoreBand'] ?? 'N/A')),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildReportItem({
-    required String title,
-    required String type,
-    required String date,
-    required IconData icon,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue.withOpacity(0.2),
-          child: Icon(icon, color: Colors.blue, size: 20),
+  Widget _buildStatusChip(String status) {
+    Color color;
+    switch (status) {
+      case 'approved':
+        color = Colors.green;
+        break;
+      case 'rejected':
+        color = Colors.red;
+        break;
+      case 'disbursed':
+        color = Colors.green;
+        break;
+      default:
+        color = Colors.orange;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('$type • $date'),
-        trailing: IconButton(
-          icon: const Icon(Icons.download),
-          onPressed: () {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Descargar: $title')));
-          },
-        ),
-        onTap: () {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Abrir: $title')));
-        },
       ),
     );
+  }
+
+  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isStartDate ? _startDate : _endDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStartDate) {
+          _startDate = picked;
+        } else {
+          _endDate = picked;
+        }
+      });
+    }
+  }
+
+  Future<void> _generateReport() async {
+    setState(() {
+      _isLoading = true;
+      _reportData = null;
+    });
+
+    try {
+      final backendApi = BackendApiDatasource();
+      final data = await backendApi.generateReport(
+        microfinancieraId: 'mf_demo_001', // ID correcto de Firebase
+        dateFrom: _startDate,
+        dateTo: _endDate,
+      );
+
+      setState(() {
+        _reportData = data;
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Reporte generado: ${data.length} registros'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generando reporte: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadMetrics() async {
+    setState(() {
+      _isLoading = true;
+      _metrics = null;
+    });
+
+    try {
+      final backendApi = BackendApiDatasource();
+      final data = await backendApi.getConversionMetrics(
+        microfinancieraId: 'mf_demo_001', // ID correcto de Firebase
+        dateFrom: _startDate,
+        dateTo: _endDate,
+      );
+
+      setState(() {
+        _metrics = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cargando métricas: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _debugCount() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final backendApi = BackendApiDatasource();
+
+      // Llamar al endpoint de debug
+      final response = await backendApi.debugApplicationsCount(
+        microfinancieraId: 'mf_demo_001', // ID correcto de Firebase
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        // Mostrar diálogo con los resultados
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Debug: Total de Solicitudes'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total: ${response['total']}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Por Estado:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...((response['byStatus'] as Map<String, dynamic>).entries
+                      .map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text('${e.key}: ${e.value}'),
+                        ),
+                      )
+                      .toList()),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Primeras solicitudes:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...((response['applications'] as List<dynamic>).map((app) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        '${app['customerName']} - ${app['status']}\n'
+                        'Creado: ${app['createdAt']}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    );
+                  }).toList()),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error en debug: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/config/firebase_config.dart';
@@ -16,16 +15,13 @@ class FirebaseAuthDataSource {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     GoogleSignIn? googleSignIn,
-    FacebookAuth? facebookAuth,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
-       _facebookAuth = facebookAuth ?? FacebookAuth.instance;
+       _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final GoogleSignIn _googleSignIn;
-  final FacebookAuth _facebookAuth;
   Future<void>? _googleInitialization;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -109,12 +105,12 @@ class FirebaseAuthDataSource {
           .toList();
       final membershipPhone =
           (membershipData['phone'] as String?)?.trim().isNotEmpty == true
-              ? (membershipData['phone'] as String).trim()
-              : null;
+          ? (membershipData['phone'] as String).trim()
+          : null;
       final membershipDni =
           (membershipData['dni'] as String?)?.trim().isNotEmpty == true
-              ? (membershipData['dni'] as String).trim()
-              : null;
+          ? (membershipData['dni'] as String).trim()
+          : null;
 
       unawaited(
         ensureUserDocuments(
@@ -379,8 +375,10 @@ class FirebaseAuthDataSource {
       final googleAuth = googleUser.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null) {
-        debugPrint('Google Sign-In did not provide an ID token');
-        return null;
+        throw FirebaseAuthException(
+          code: 'google-sign-in-missing-id-token',
+          message: 'Google Sign-In no proporcionó un ID token.',
+        );
       }
 
       final credential = GoogleAuthProvider.credential(idToken: idToken);
@@ -422,44 +420,10 @@ class FirebaseAuthDataSource {
   }
 
   Future<UserCredential?> signInWithFacebook() async {
-    try {
-      if (kIsWeb) {
-        final facebookProvider = FacebookAuthProvider();
-        return await _auth.signInWithPopup(facebookProvider);
-      }
-
-      final result = await _facebookAuth.login(
-        permissions: const ['email', 'public_profile'],
-      );
-
-      switch (result.status) {
-        case LoginStatus.success:
-          final accessToken = result.accessToken?.token;
-          if (accessToken == null) {
-            debugPrint('Facebook Sign-In did not return an access token');
-            return null;
-          }
-          final credential = FacebookAuthProvider.credential(accessToken);
-          final userCredential = await _auth.signInWithCredential(credential);
-          final user = userCredential.user;
-          if (user != null) {
-            unawaited(ensureUserDocuments(user));
-          }
-          return userCredential;
-        case LoginStatus.cancelled:
-          return null;
-        case LoginStatus.failed:
-        case LoginStatus.operationInProgress:
-          final error = result.message ?? 'Unknown error';
-          throw FirebaseAuthException(
-            code: result.status.name,
-            message: 'Facebook Sign-In failed: $error',
-          );
-      }
-    } catch (error, stackTrace) {
-      _logError('signInWithFacebook', error, stackTrace);
-      rethrow;
-    }
+    throw FirebaseAuthException(
+      code: 'facebook-disabled',
+      message: 'El inicio de sesión con Facebook no está disponible',
+    );
   }
 
   Future<void> signOut() async {
@@ -468,7 +432,6 @@ class FirebaseAuthDataSource {
         await _ensureGoogleInitialized();
         await _googleSignIn.signOut();
       }
-      await _facebookAuth.logOut();
       await _auth.signOut();
     } catch (error, stackTrace) {
       _logError('signOut', error, stackTrace);
@@ -482,8 +445,9 @@ class FirebaseAuthDataSource {
     required List<String> roles,
     required String provider,
   }) async {
-    final microfinancieraRef =
-        _firestore.collection('microfinancieras').doc(microfinancieraId);
+    final microfinancieraRef = _firestore
+        .collection('microfinancieras')
+        .doc(microfinancieraId);
     final microfinancieraSnapshot = await microfinancieraRef.get();
 
     if (!microfinancieraSnapshot.exists) {
@@ -522,8 +486,8 @@ class FirebaseAuthDataSource {
         'email': trimmedEmail,
         'displayName':
             trimmedDisplayName != null && trimmedDisplayName.isNotEmpty
-                ? trimmedDisplayName
-                : null,
+            ? trimmedDisplayName
+            : null,
         'photoUrl': user.photoURL,
         'linkedProviders': [providerKey],
         'roles': newRoles,
@@ -564,11 +528,12 @@ class FirebaseAuthDataSource {
         .toSet()
         .toList();
 
-    final providerSet = (membershipData['linkedProviders'] as List<dynamic>? ?? [])
-        .map((value) => value.toString())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-      ..add(providerKey);
+    final providerSet =
+        (membershipData['linkedProviders'] as List<dynamic>? ?? [])
+            .map((value) => value.toString())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+          ..add(providerKey);
 
     final existingRolesList = (membershipData['roles'] as List<dynamic>? ?? [])
         .map((value) => value.toString())
@@ -590,26 +555,24 @@ class FirebaseAuthDataSource {
       mergedRolesFinal.add('analyst');
     }
 
-    final existingPrimary = (membershipData['primaryRoleId'] as String?)?.trim();
+    final existingPrimary = (membershipData['primaryRoleId'] as String?)
+        ?.trim();
     final resolvedPrimary =
         (existingPrimary != null && existingPrimary.isNotEmpty)
-            ? existingPrimary
-            : mergedRolesFinal.first;
+        ? existingPrimary
+        : mergedRolesFinal.first;
 
     final existingStatus = (membershipData['status'] as String?)?.trim();
-    final resolvedStatus =
-        (existingStatus != null && existingStatus.isNotEmpty)
-            ? existingStatus
-            : 'active';
+    final resolvedStatus = (existingStatus != null && existingStatus.isNotEmpty)
+        ? existingStatus
+        : 'active';
 
-    final resolvedDisplayName =
-        trimmedDisplayName?.isNotEmpty == true
-            ? trimmedDisplayName
-            : (membershipData['displayName'] as String?) ?? user.displayName;
-    final resolvedEmail =
-        trimmedEmail?.isNotEmpty == true
-            ? trimmedEmail
-            : (membershipData['email'] as String?) ?? user.email;
+    final resolvedDisplayName = trimmedDisplayName?.isNotEmpty == true
+        ? trimmedDisplayName
+        : (membershipData['displayName'] as String?) ?? user.displayName;
+    final resolvedEmail = trimmedEmail?.isNotEmpty == true
+        ? trimmedEmail
+        : (membershipData['email'] as String?) ?? user.email;
     final resolvedPhone =
         user.phoneNumber ?? (membershipData['phone'] as String?);
     final resolvedDni = (membershipData['dni'] as String?);
@@ -623,10 +586,12 @@ class FirebaseAuthDataSource {
       'status': resolvedStatus,
       'lastLoginAt': now,
       'updatedAt': now,
-      if (resolvedEmail != null && resolvedEmail.isNotEmpty) 'email': resolvedEmail,
+      if (resolvedEmail != null && resolvedEmail.isNotEmpty)
+        'email': resolvedEmail,
       if (resolvedDisplayName != null && resolvedDisplayName.isNotEmpty)
         'displayName': resolvedDisplayName,
-      if (resolvedPhone != null && resolvedPhone.isNotEmpty) 'phone': resolvedPhone,
+      if (resolvedPhone != null && resolvedPhone.isNotEmpty)
+        'phone': resolvedPhone,
       if (resolvedDni != null && resolvedDni.trim().isNotEmpty)
         'dni': resolvedDni.trim(),
     };
@@ -766,10 +731,8 @@ class FirebaseAuthDataSource {
       );
 
       final searchKeys = <String>{
-        if (nameParts.firstName != null)
-          nameParts.firstName!.toLowerCase(),
-        if (nameParts.lastName != null)
-          nameParts.lastName!.toLowerCase(),
+        if (nameParts.firstName != null) nameParts.firstName!.toLowerCase(),
+        if (nameParts.lastName != null) nameParts.lastName!.toLowerCase(),
         resolvedDisplayName.toLowerCase(),
         if (resolvedEmail != null) resolvedEmail.toLowerCase(),
         if (resolvedPhone != null) resolvedPhone,
@@ -831,14 +794,11 @@ class FirebaseAuthDataSource {
 
       if (staffRoles.isEmpty) {
         if (workerSnapshot.exists) {
-          await workerRef.set(
-            {
-              'roleIds': <String>[],
-              'isActive': false,
-              'updatedAt': timestamp,
-            },
-            SetOptions(merge: true),
-          );
+          await workerRef.set({
+            'roleIds': <String>[],
+            'isActive': false,
+            'updatedAt': timestamp,
+          }, SetOptions(merge: true));
         }
         return;
       }
@@ -978,8 +938,8 @@ class FirebaseAuthDataSource {
         userData['primaryMfId'] = trimmedMfId;
         userData['primaryMembershipId'] =
             (membershipId != null && membershipId.trim().isNotEmpty)
-                ? membershipId.trim()
-                : user.uid;
+            ? membershipId.trim()
+            : user.uid;
         if (roles != null && roles.isNotEmpty) {
           userData['primaryRoles'] = roles;
         }
@@ -1022,8 +982,8 @@ class FirebaseAuthDataSource {
         profileData['microfinancieraId'] = trimmedMfId;
         profileData['membershipId'] =
             (membershipId != null && membershipId.trim().isNotEmpty)
-                ? membershipId.trim()
-                : user.uid;
+            ? membershipId.trim()
+            : user.uid;
         if (roles != null && roles.isNotEmpty) {
           profileData['roles'] = roles;
         }
@@ -1045,8 +1005,7 @@ class FirebaseAuthDataSource {
       final rootUserSnapshot = await usersCollection.doc(uid).get();
       final rootUserData = rootUserSnapshot.data();
 
-      String? primaryMfId =
-          (rootUserData?['primaryMfId'] as String?)?.trim();
+      String? primaryMfId = (rootUserData?['primaryMfId'] as String?)?.trim();
       String? primaryMembershipId =
           (rootUserData?['primaryMembershipId'] as String?)?.trim();
 
@@ -1056,8 +1015,9 @@ class FirebaseAuthDataSource {
       String? microfinancieraId;
 
       if (primaryMfId != null && primaryMfId.isNotEmpty) {
-        final candidateMicroRef =
-            _firestore.collection('microfinancieras').doc(primaryMfId);
+        final candidateMicroRef = _firestore
+            .collection('microfinancieras')
+            .doc(primaryMfId);
         final candidateMembershipRef = candidateMicroRef
             .collection('users')
             .doc(
@@ -1075,11 +1035,14 @@ class FirebaseAuthDataSource {
       }
 
       if (membershipDoc == null) {
-        final microfinancierasSnapshot =
-            await _firestore.collection('microfinancieras').get();
+        final microfinancierasSnapshot = await _firestore
+            .collection('microfinancieras')
+            .get();
         for (final microDoc in microfinancierasSnapshot.docs) {
-          final candidateDoc =
-              await microDoc.reference.collection('users').doc(uid).get();
+          final candidateDoc = await microDoc.reference
+              .collection('users')
+              .doc(uid)
+              .get();
           if (candidateDoc.exists) {
             membershipDoc = candidateDoc;
             membershipData = candidateDoc.data();
@@ -1281,16 +1244,20 @@ class FirebaseAuthDataSource {
 
     final resolvedFirstName = trimmedFirstName ?? existingFirstName;
     final resolvedLastName = trimmedLastName ?? existingLastName;
-    final resolvedPhone =
-        updates.containsKey('phone') ? trimmedPhone : existingPhone;
+    final resolvedPhone = updates.containsKey('phone')
+        ? trimmedPhone
+        : existingPhone;
     final resolvedDni = updates.containsKey('dni') ? trimmedDni : existingDni;
     final resolvedFullName =
-        trimmedFullName ?? existingDisplayName ??
-        [resolvedFirstName, resolvedLastName]
-            .where((value) => value != null && value.isNotEmpty)
-            .join(' ');
-    final resolvedPhotoUrl =
-        updates.containsKey('photoUrl') ? trimmedPhotoUrl : trimmedString(membershipData['photoUrl']);
+        trimmedFullName ??
+        existingDisplayName ??
+        [
+          resolvedFirstName,
+          resolvedLastName,
+        ].where((value) => value != null && value.isNotEmpty).join(' ');
+    final resolvedPhotoUrl = updates.containsKey('photoUrl')
+        ? trimmedPhotoUrl
+        : trimmedString(membershipData['photoUrl']);
 
     final membershipUpdates = <String, dynamic>{};
     if (resolvedFullName.isNotEmpty) {
@@ -1369,8 +1336,13 @@ class FirebaseAuthDataSource {
       final customerDocNumber = updates.containsKey('dni')
           ? trimmedDni
           : trimmedString(existingCustomerData['docNumber']) ?? resolvedDni;
-      final resolvedEmail = trimmedString(membershipData['email']);  // Definir resolvedEmail
-      final customerEmail = resolvedEmail ?? trimmedString(existingCustomerData['email']) ?? '';  // Definir customerEmail
+      final resolvedEmail = trimmedString(
+        membershipData['email'],
+      ); // Definir resolvedEmail
+      final customerEmail =
+          resolvedEmail ??
+          trimmedString(existingCustomerData['email']) ??
+          ''; // Definir customerEmail
 
       final customerUpdates = <String, dynamic>{
         'updatedAt': FieldValue.serverTimestamp(),
@@ -1387,14 +1359,11 @@ class FirebaseAuthDataSource {
           customerFirstName.toLowerCase(),
         if (customerLastName != null && customerLastName.isNotEmpty)
           customerLastName.toLowerCase(),
-        if (customerFullName.isNotEmpty)
-          customerFullName.toLowerCase(),
+        if (customerFullName.isNotEmpty) customerFullName.toLowerCase(),
         if (customerDocNumber != null && customerDocNumber.isNotEmpty)
           customerDocNumber,
-        if (customerPhone != null && customerPhone.isNotEmpty)
-          customerPhone,
-        if (customerEmail.isNotEmpty)
-          customerEmail.toLowerCase(),
+        if (customerPhone != null && customerPhone.isNotEmpty) customerPhone,
+        if (customerEmail.isNotEmpty) customerEmail.toLowerCase(),
       }..removeWhere((value) => value.trim().isEmpty);
 
       customerUpdates['searchKeys'] = searchKeys.toList();
@@ -1402,12 +1371,22 @@ class FirebaseAuthDataSource {
       await customerRef.update(customerUpdates);
     }
 
-    final resolvedEmail = trimmedString(membershipData['email']);  // Definir resolvedEmail
+    final resolvedEmail = trimmedString(
+      membershipData['email'],
+    );
 
-    final roles = (membershipData['roles'] as List<dynamic>? ?? []).map((e) => e.toString()).where((e) => e.isNotEmpty).toList();  // Definir roles correctamente
-    final staffRoles = roles.where((role) => role != 'customer').toSet().toList();
+    final roles = (membershipData['roles'] as List<dynamic>? ?? [])
+        .map((e) => e.toString())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final staffRoles = roles
+        .where((role) => role != 'customer')
+        .toSet()
+        .toList();
 
-    final microfinancieraRef = _firestore.collection('microfinancieras').doc(microfinancieraId);  // Definir microfinancieraRef
+    final microfinancieraRef = _firestore
+        .collection('microfinancieras')
+        .doc(microfinancieraId);
 
     final workersCollection = microfinancieraRef.collection('workers');
     final workerRef = workersCollection.doc(uid);
@@ -1416,14 +1395,11 @@ class FirebaseAuthDataSource {
 
     if (staffRoles.isEmpty) {
       if (workerSnapshot.exists) {
-        await workerRef.set(
-          {
-            'roleIds': <String>[],
-            'isActive': false,
-            'updatedAt': workerTimestamp,
-          },
-          SetOptions(merge: true),
-        );
+        await workerRef.set({
+          'roleIds': <String>[],
+          'isActive': false,
+          'updatedAt': workerTimestamp,
+        }, SetOptions(merge: true));
       }
     } else {
       final baseEmail = resolvedEmail ?? '';
@@ -1462,10 +1438,10 @@ class FirebaseAuthDataSource {
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    await _firestore.collection('users').doc(uid).set(
-          rootUserUpdates,
-          SetOptions(merge: true),
-        );
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set(rootUserUpdates, SetOptions(merge: true));
 
     final rootProfileUpdates = <String, dynamic>{
       'firstName': resolvedProfileFirstName,
@@ -1479,15 +1455,14 @@ class FirebaseAuthDataSource {
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    await _firestore.collection('user_profiles').doc(uid).set(
-          rootProfileUpdates,
-          SetOptions(merge: true),
-        );
+    await _firestore
+        .collection('user_profiles')
+        .doc(uid)
+        .set(rootProfileUpdates, SetOptions(merge: true));
   }
 
   Future<bool> checkEmailExists(String email) async {
     try {
-      // Check across all microfinancieras for email uniqueness
       final microfinancieras = await _firestore
           .collection('microfinancieras')
           .get();
@@ -1516,7 +1491,6 @@ class FirebaseAuthDataSource {
     try {
       if (dni.isEmpty) return false;
 
-      // Check across all microfinancieras for DNI uniqueness
       final microfinancieras = await _firestore
           .collection('microfinancieras')
           .get();
@@ -1605,8 +1579,14 @@ class FirebaseAuthDataSource {
   }
 
   void _logError(String method, Object error, StackTrace stackTrace) {
-    debugPrint('FirebaseAuthDataSource::$method error: $error');
-    debugPrintStack(stackTrace: stackTrace);
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'FirebaseAuthDataSource',
+        context: ErrorDescription('Error en $method'),
+      ),
+    );
   }
 }
 

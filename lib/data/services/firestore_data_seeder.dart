@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -12,9 +13,8 @@ class FirestoreDataSeeder {
     }
 
     try {
-      print('🌱 Iniciando poblado de datos para microfinanciera: $mfId');
+      _logInfo('Iniciando poblado de datos para microfinanciera: $mfId');
 
-      // Crear datos de ejemplo en lotes para mejor rendimiento
       await _seedBranches(mfId);
       await _seedProducts(mfId);
       await _seedAgents(mfId);
@@ -22,15 +22,13 @@ class FirestoreDataSeeder {
       await _seedApplications(mfId);
       await _seedLoans(mfId);
 
-      print('✅ Datos de ejemplo creados exitosamente');
+      _logInfo('Datos de ejemplo creados exitosamente');
     } catch (e, stackTrace) {
-      print('❌ Error poblando datos: $e');
-      print('Stack trace: $stackTrace');
+      _reportError('seedSampleData', e, stackTrace);
       rethrow;
     }
   }
 
-  /// Crear sucursales de ejemplo
   Future<void> _seedBranches(String mfId) async {
     final branches = [
       {
@@ -73,10 +71,9 @@ class FirestoreDataSeeder {
     }
 
     await batch.commit();
-    print('✅ ${branches.length} sucursales creadas');
+    _logInfo('${branches.length} sucursales creadas');
   }
 
-  /// Crear productos financieros de ejemplo
   Future<void> _seedProducts(String mfId) async {
     final products = [
       {
@@ -85,11 +82,11 @@ class FirestoreDataSeeder {
         'code': 'MICRO_001',
         'name': 'Microcrédito Personal',
         'interestType': 'flat',
-        'rateNominal': 0.28, // 28% anual
+        'rateNominal': 0.28, 
         'termMin': 3,
         'termMax': 12,
-        'amountMin': 50000, // S/. 500
-        'amountMax': 500000, // S/. 5,000
+        'amountMin': 50000, 
+        'amountMax': 500000, 
       },
       {
         'id': 'product_pyme',
@@ -97,11 +94,11 @@ class FirestoreDataSeeder {
         'code': 'PYME_001',
         'name': 'Crédito PYME',
         'interestType': 'declining',
-        'rateNominal': 0.24, // 24% anual
+        'rateNominal': 0.24, 
         'termMin': 6,
         'termMax': 24,
-        'amountMin': 500000, // S/. 5,000
-        'amountMax': 2000000, // S/. 20,000
+        'amountMin': 500000, 
+        'amountMax': 2000000, 
       },
       {
         'id': 'product_agro',
@@ -109,11 +106,11 @@ class FirestoreDataSeeder {
         'code': 'AGRO_001',
         'name': 'Crédito Agrícola',
         'interestType': 'flat',
-        'rateNominal': 0.20, // 20% anual
+        'rateNominal': 0.20, 
         'termMin': 3,
         'termMax': 18,
-        'amountMin': 100000, // S/. 1,000
-        'amountMax': 1000000, // S/. 10,000
+        'amountMin': 100000, 
+        'amountMax': 1000000, 
       },
     ];
 
@@ -130,18 +127,18 @@ class FirestoreDataSeeder {
       batch.set(ref, {
         ...productData,
         'fees': {
-          'origination': 2000, // S/. 20
-          'administrative': 1500, // S/. 15
+          'origination': 2000, 
+          'administrative': 1500, 
         },
         'penalties': {
-          'late_payment': 5000, // S/. 50
+          'late_payment': 5000,   
         },
         'createdAt': now,
       });
     }
 
     await batch.commit();
-    print('✅ ${products.length} productos creados');
+    _logInfo('${products.length} productos creados');
   }
 
   /// Crear agentes de crédito de ejemplo
@@ -188,7 +185,7 @@ class FirestoreDataSeeder {
     }
 
     await batch.commit();
-    print('✅ ${agents.length} agentes creados');
+    _logInfo('${agents.length} agentes creados');
   }
 
   /// Crear clientes de ejemplo
@@ -256,7 +253,7 @@ class FirestoreDataSeeder {
     }
 
     await batch.commit();
-    print('✅ ${customers.length} clientes creados');
+    _logInfo('${customers.length} clientes creados');
   }
 
   /// Crear solicitudes de ejemplo
@@ -311,7 +308,7 @@ class FirestoreDataSeeder {
     }
 
     await batch.commit();
-    print('✅ ${applications.length} solicitudes creadas');
+    _logInfo('${applications.length} solicitudes creadas');
   }
 
   /// Crear préstamos de ejemplo
@@ -353,21 +350,17 @@ class FirestoreDataSeeder {
     }
 
     await batch.commit();
-    print('✅ ${loans.length} préstamos creados');
+    _logInfo('${loans.length} préstamos creados');
   }
 
-  /// Generar claves de búsqueda para un cliente
   List<String> _generateSearchKeys(String fullName, String docNumber) {
     final keys = <String>{};
 
-    // Agregar nombres individuales
     final nameParts = fullName.toLowerCase().split(' ');
     keys.addAll(nameParts);
 
-    // Agregar número de documento
     keys.add(docNumber);
 
-    // Agregar combinaciones de nombre
     if (nameParts.length >= 2) {
       keys.add('${nameParts[0]} ${nameParts[1]}');
     }
@@ -375,7 +368,6 @@ class FirestoreDataSeeder {
     return keys.toList();
   }
 
-  /// Limpiar todos los datos de ejemplo (usar con cuidado)
   Future<void> clearSampleData({String mfId = 'demo_mf'}) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -409,10 +401,28 @@ class FirestoreDataSeeder {
 
       if (snapshot.docs.isNotEmpty) {
         await batch.commit();
-        print('✅ ${snapshot.docs.length} documentos eliminados de $collection');
+        _logInfo('${snapshot.docs.length} documentos eliminados de $collection');
       }
     }
 
-    print('✅ Datos de ejemplo eliminados');
+    _logInfo('Datos de ejemplo eliminados');
+  }
+
+  void _logInfo(String message) {
+    developer.log(
+      message,
+      name: 'FirestoreDataSeeder',
+      level: 800,
+    );
+  }
+
+  void _reportError(String method, Object error, StackTrace stackTrace) {
+    developer.log(
+      'Error en $method',
+      name: 'FirestoreDataSeeder',
+      error: error,
+      stackTrace: stackTrace,
+      level: 1000,
+    );
   }
 }

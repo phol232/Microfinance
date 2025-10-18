@@ -2,5 +2,7 @@
     <string name="app_name">mobile</string>
     <string name="facebook_app_id">821681860290704</string>
     <string name="fb_login_protocol_scheme">fb821681860290704</string>
+    <!-- Reemplaza con tu token real de Facebook Developer Console -->
+    <!-- O deja vacío si no usas Facebook: android:value="" -->
     <string name="facebook_client_token">FACEBOOK_CLIENT_TOKEN</string>
 </resources>

@@ -227,4 +227,231 @@ class AppTheme {
       ),
     );
   }
+
+  static ThemeData get darkTheme {
+    final ColorScheme colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.dark,
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
+      surface: const Color(0xFF121212),
+      error: AppColors.error,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      brightness: Brightness.dark,
+
+      // Tipografía
+      textTheme: const TextTheme(
+        displayLarge: AppTypography.displayLarge,
+        displayMedium: AppTypography.displayMedium,
+        displaySmall: AppTypography.displaySmall,
+        headlineLarge: AppTypography.headlineLarge,
+        headlineMedium: AppTypography.headlineMedium,
+        headlineSmall: AppTypography.headlineSmall,
+        titleLarge: AppTypography.titleLarge,
+        titleMedium: AppTypography.titleMedium,
+        titleSmall: AppTypography.titleSmall,
+        bodyLarge: AppTypography.bodyLarge,
+        bodyMedium: AppTypography.bodyMedium,
+        bodySmall: AppTypography.bodySmall,
+        labelLarge: AppTypography.labelLarge,
+        labelMedium: AppTypography.labelMedium,
+        labelSmall: AppTypography.labelSmall,
+      ),
+
+      // AppBar
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        centerTitle: true,
+        backgroundColor: const Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
+        titleTextStyle: AppTypography.headlineMedium.copyWith(
+          color: Colors.white,
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+
+      // Botones elevados
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.onPrimary,
+          elevation: AppSpacing.elevation2,
+          minimumSize: const Size(0, AppSpacing.minButtonHeight),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.lg,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          textStyle: AppTypography.labelLarge,
+        ),
+      ),
+
+      // Botones de texto
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          minimumSize: const Size(0, AppSpacing.minButtonHeight),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          textStyle: AppTypography.labelLarge,
+        ),
+      ),
+
+      // Botones outlined
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          minimumSize: const Size(0, AppSpacing.minButtonHeight),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.lg,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          side: BorderSide(color: Colors.grey[700]!),
+          textStyle: AppTypography.labelLarge,
+        ),
+      ),
+
+      // Input fields
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF2C2C2C),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: BorderSide(color: Colors.grey[700]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: BorderSide(color: Colors.grey[700]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
+        ),
+        labelStyle: AppTypography.bodyMedium.copyWith(color: Colors.grey[400]),
+        hintStyle: AppTypography.bodyMedium.copyWith(color: Colors.grey[600]),
+        errorStyle: AppTypography.bodySmall.copyWith(color: AppColors.error),
+      ),
+
+      // Card
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1E1E1E),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+      ),
+
+      // Navigation Drawer
+      drawerTheme: const DrawerThemeData(
+        backgroundColor: Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(AppSpacing.radiusLg),
+            bottomRight: Radius.circular(AppSpacing.radiusLg),
+          ),
+        ),
+      ),
+
+      // ListTile
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+      ),
+
+      // Divider
+      dividerTheme: DividerThemeData(
+        color: Colors.grey[800],
+        thickness: 1,
+        space: 1,
+      ),
+
+      // SnackBar
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF2C2C2C),
+        contentTextStyle: AppTypography.bodyMedium.copyWith(
+          color: Colors.white,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+        behavior: SnackBarBehavior.floating,
+        elevation: AppSpacing.elevation3,
+      ),
+
+      // Floating Action Button
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+        elevation: AppSpacing.elevation3,
+      ),
+
+      // Progress Indicator
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+      ),
+
+      // Switch
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return Colors.grey[400];
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary.withValues(alpha: 0.5);
+          }
+          return Colors.grey[700];
+        }),
+      ),
+
+      // Checkbox
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: const WidgetStatePropertyAll(AppColors.onPrimary),
+        side: BorderSide(color: Colors.grey[700]!, width: 2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+        ),
+      ),
+    );
+  }
 }
