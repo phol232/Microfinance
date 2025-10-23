@@ -63,6 +63,21 @@ class AuthRegistrationSuccess extends AuthState {
   List<Object?> get props => [user.uid];
 }
 
+/// Estado pendiente - usuario registrado pero pendiente de aprobación
+class AuthPending extends AuthState {
+  final AppUser user;
+  final String message;
+
+  const AuthPending({
+    required this.user,
+    this.message =
+        'Tu cuenta está pendiente de aprobación. Te notificaremos cuando sea aprobada.',
+  });
+
+  @override
+  List<Object?> get props => [user.uid, message];
+}
+
 /// Estado cuando se han cargado las microfinancieras
 class AuthMicrofinancierasLoaded extends AuthState {
   final List<Microfinanciera> microfinancieras;
@@ -71,4 +86,27 @@ class AuthMicrofinancierasLoaded extends AuthState {
 
   @override
   List<Object?> get props => [microfinancieras];
+}
+
+/// Estado de acceso no autorizado - usuario no tiene permisos para acceder a la app
+///
+/// Razones de rechazo:
+/// - `invalid_role`: Usuario no tiene rol "analyst"
+/// - `missing_role`: Usuario no tiene primaryRoleId definido
+/// - `invalid_status`: Usuario no tiene status "approved"
+/// - `missing_profile`: No se pudo obtener el perfil del usuario
+/// - `validation_error`: Error al validar permisos
+class AuthUnauthorized extends AuthState {
+  final AppUser user;
+  final String reason;
+  final String message;
+
+  const AuthUnauthorized({
+    required this.user,
+    required this.reason,
+    required this.message,
+  });
+
+  @override
+  List<Object?> get props => [user.uid, reason, message];
 }

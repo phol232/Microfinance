@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/logging/app_logger.dart';
 
 class LoanApplication {
   final String id;
@@ -118,7 +119,7 @@ class LoanApplication {
         updatedAt: _parseTimestamp(data['updatedAt']),
       );
     } catch (e) {
-      print('❌ Error parsing LoanApplication from Firestore (${doc.id}): $e');
+      AppLogger.error('Error parsing LoanApplication from Firestore', tag: 'LoanApplication', error: e);
       rethrow;
     }
   }

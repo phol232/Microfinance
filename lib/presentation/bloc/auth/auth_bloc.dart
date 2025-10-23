@@ -1,17 +1,43 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../domain/entities/app_user.dart';
 import '../../../domain/repositories/auth_repository.dart';
+import '../../../domain/usecases/auth/login_user_usecase.dart';
+import '../../../domain/usecases/auth/register_user_usecase.dart';
+import '../../../domain/usecases/auth/logout_user_usecase.dart';
+import '../../../domain/usecases/auth/get_current_user_usecase.dart';
+import '../../../domain/usecases/auth/get_microfinancieras_usecase.dart';
+import '../../../domain/usecases/auth/google_signin_usecase.dart';
+import '../../../domain/usecases/auth/anonymous_signin_usecase.dart';
+import '../../../domain/usecases/auth/validate_user_access_usecase.dart';
+import '../../../domain/core/error/failures.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc({required AuthRepository authRepository})
-    : _authRepository = authRepository,
-      super(const AuthInitial()) {
+  AuthBloc({
+    required AuthRepository authRepository,
+    required LoginUserUseCase loginUserUseCase,
+    required RegisterUserUseCase registerUserUseCase,
+    required LogoutUserUseCase logoutUserUseCase,
+    required GetCurrentUserUseCase getCurrentUserUseCase,
+    required GetMicrofinancierasUseCase getMicrofinancierasUseCase,
+    required GoogleSignInUseCase googleSignInUseCase,
+    required AnonymousSignInUseCase anonymousSignInUseCase,
+    required ValidateUserAccessUseCase validateUserAccessUseCase,
+  }) : _authRepository = authRepository,
+       _loginUserUseCase = loginUserUseCase,
+       _registerUserUseCase = registerUserUseCase,
+       _logoutUserUseCase = logoutUserUseCase,
+       _getCurrentUserUseCase = getCurrentUserUseCase,
+       _getMicrofinancierasUseCase = getMicrofinancierasUseCase,
+       _googleSignInUseCase = googleSignInUseCase,
+       _anonymousSignInUseCase = anonymousSignInUseCase,
+       _validateUserAccessUseCase = validateUserAccessUseCase,
+       super(const AuthInitial()) {
     on<AuthCheckRequested>(_onAuthCheckRequested);
     on<AuthLoginRequested>(_onAuthLoginRequested);
     on<AuthRegisterRequested>(_onAuthRegisterRequested);
@@ -28,6 +54,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final AuthRepository _authRepository;
+  final LoginUserUseCase _loginUserUseCase;
+  final RegisterUserUseCase _registerUserUseCase;
+  final LogoutUserUseCase _logoutUserUseCase;
+  final GetCurrentUserUseCase _getCurrentUserUseCase;
+  final GetMicrofinancierasUseCase _getMicrofinancierasUseCase;
+  final GoogleSignInUseCase _googleSignInUseCase;
+  final AnonymousSignInUseCase _anonymousSignInUseCase;
+  final ValidateUserAccessUseCase _validateUserAccessUseCase;
   late final StreamSubscription<AppUser?> _authStateSubscription;
 
   Future<void> _onAuthCheckRequested(
@@ -36,12 +70,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    final user = _authRepository.currentUser;
-    if (user != null) {
-      emit(AuthAuthenticated(user: user));
-    } else {
-      emit(const AuthUnauthenticated());
-    }
+    final result = await _getCurrentUserUseCase();
+
+    result.fold(
+      (failure) => emit(
+        AuthError(
+          message: _getFailureMessage(failure),
+          errorCode: 'auth_check_error',
+        ),
+      ),
+      (user) async {
+        if (user != null) {
+          // Verificar el estado del usuario antes de emitir AuthAuthenticated
+          await _checkUserStatusAndEmit(user, emit);
+        } else {
+          emit(const AuthUnauthenticated());
+        }
+      },
+    );
   }
 
   Future<void> _onAuthLoginRequested(
@@ -50,28 +96,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthMicrofinancierasLoading());
 
-    try {
-      final user = await _authRepository.signInWithEmailAndPassword(
-        email: event.email,
-        password: event.password,
-        microfinancieraId: event.microfinancieraId,
-      );
+    final params = LoginParams(
+      email: event.email,
+      password: event.password,
+      microfinancieraId: event.microfinancieraId,
+    );
 
-      if (user != null) {
-        emit(AuthAuthenticated(user: user));
-      } else {
-        emit(
-          const AuthError(
-            message: 'Error al iniciar sesión. Verifica tus credenciales.',
-            errorCode: 'login_failed',
-          ),
-        );
-      }
-    } catch (error) {
-      emit(
-        AuthError(message: _getErrorMessage(error), errorCode: 'login_error'),
-      );
-    }
+    final result = await _loginUserUseCase(params);
+
+    result.fold(
+      (failure) => emit(
+        AuthError(
+          message: _getFailureMessage(failure),
+          errorCode: 'login_error',
+        ),
+      ),
+      (user) async {
+        // Verificar el estado del usuario después del login
+        await _checkUserStatusAndEmit(user, emit);
+      },
+    );
   }
 
   Future<void> _onAuthRegisterRequested(
@@ -80,36 +124,31 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthMicrofinancierasLoading());
 
-    try {
-      final user = await _authRepository.registerWithEmailAndPassword(
-        email: event.email,
-        password: event.password,
-        firstName: event.firstName,
-        lastName: event.lastName,
-        dni: event.dni,
-        phone: event.phone,
-        microfinancieraId: event.microfinancieraId,
-        roles: event.roles,
-      );
+    final params = RegisterParams(
+      email: event.email,
+      password: event.password,
+      firstName: event.firstName,
+      lastName: event.lastName,
+      dni: event.dni,
+      phone: event.phone,
+      microfinancieraId: event.microfinancieraId,
+      roles: event.roles,
+    );
 
-      if (user != null) {
-        emit(AuthRegistrationSuccess(user: user));
-      } else {
-        emit(
-          const AuthError(
-            message: 'Error al registrar usuario.',
-            errorCode: 'registration_failed',
-          ),
-        );
-      }
-    } catch (error) {
-      emit(
+    final result = await _registerUserUseCase(params);
+
+    result.fold(
+      (failure) => emit(
         AuthError(
-          message: _getErrorMessage(error),
+          message: _getFailureMessage(failure),
           errorCode: 'registration_error',
         ),
-      );
-    }
+      ),
+      (user) async {
+        // Verificar el estado del usuario después del registro
+        await _checkUserStatusAndEmit(user, emit);
+      },
+    );
   }
 
   Future<void> _onAuthGoogleSignInRequested(
@@ -118,29 +157,89 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    try {
-      final user = await _authRepository.signInWithGoogle(
-        microfinancieraId: event.microfinancieraId,
-        roles: event.roles,
-      );
-      if (user != null) {
-        emit(AuthAuthenticated(user: user));
-      } else {
-        emit(
-          const AuthError(
-            message: 'Error al iniciar sesión con Google.',
-            errorCode: 'google_signin_failed',
-          ),
-        );
-      }
-    } catch (error) {
-      emit(
+    final params = GoogleSignInParams(
+      microfinancieraId: event.microfinancieraId,
+      roles: event.roles,
+    );
+
+    final result = await _googleSignInUseCase(params);
+
+    result.fold(
+      (failure) => emit(
         AuthError(
-          message: _getErrorMessage(error),
+          message: _getFailureMessage(failure),
           errorCode: 'google_signin_error',
         ),
-      );
-    }
+      ),
+      (user) async {
+        // Verificar el estado del usuario después del login con Google
+        await _checkUserStatusAndEmit(user, emit);
+      },
+    );
+  }
+
+  /// Verifica el estado del usuario y emite el estado correspondiente
+  Future<void> _checkUserStatusAndEmit(
+    AppUser user,
+    Emitter<AuthState> emit,
+  ) async {
+    await _validateUserAccess(user, emit);
+  }
+
+  /// Valida el acceso del usuario basado en rol y status usando el UseCase
+  Future<void> _validateUserAccess(
+    AppUser user,
+    Emitter<AuthState> emit,
+  ) async {
+    final params = ValidateUserAccessParams(user: user);
+    final result = await _validateUserAccessUseCase(params);
+
+    result.fold(
+      // En caso de Failure (error técnico), denegar acceso por seguridad
+      (failure) {
+        debugPrint('❌ RBAC: Error al validar acceso: ${failure.message}');
+        emit(
+          AuthUnauthorized(
+            user: user,
+            reason: 'validation_error',
+            message: 'Error al verificar permisos. Intenta nuevamente.',
+          ),
+        );
+      },
+      // En caso de éxito, procesar el resultado de la validación
+      (validation) {
+        if (validation.isAuthorized) {
+          debugPrint(
+            '✅ RBAC: Usuario ${user.uid} autorizado (analyst + approved)',
+          );
+          emit(AuthAuthenticated(user: user));
+        } else if (validation.isPending) {
+          debugPrint(
+            '⏳ RBAC: Usuario ${user.uid} está pendiente de aprobación',
+          );
+          emit(AuthPending(user: user, message: validation.message ?? ''));
+        } else if (validation.isRejected) {
+          debugPrint('❌ RBAC: Usuario ${user.uid} fue rechazado');
+          emit(
+            AuthError(
+              message: validation.message ?? 'Tu cuenta ha sido rechazada.',
+              errorCode: 'account_rejected',
+            ),
+          );
+        } else if (validation.isUnauthorized) {
+          debugPrint(
+            '❌ RBAC: Usuario ${user.uid} no autorizado - ${validation.reason}',
+          );
+          emit(
+            AuthUnauthorized(
+              user: user,
+              reason: validation.reason ?? 'unknown',
+              message: validation.message ?? 'Acceso no autorizado.',
+            ),
+          );
+        }
+      },
+    );
   }
 
   Future<void> _onAuthFacebookSignInRequested(
@@ -162,26 +261,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    try {
-      final user = await _authRepository.signInAnonymously();
-      if (user != null) {
-        emit(AuthAuthenticated(user: user));
-      } else {
-        emit(
-          const AuthError(
-            message: 'Error al iniciar sesión anónima.',
-            errorCode: 'anonymous_signin_failed',
-          ),
-        );
-      }
-    } catch (error) {
-      emit(
+    final result = await _anonymousSignInUseCase();
+
+    result.fold(
+      (failure) => emit(
         AuthError(
-          message: _getErrorMessage(error),
+          message: _getFailureMessage(failure),
           errorCode: 'anonymous_signin_error',
         ),
-      );
-    }
+      ),
+      (user) async {
+        // Verificar el estado del usuario antes de emitir AuthAuthenticated
+        await _checkUserStatusAndEmit(user, emit);
+      },
+    );
   }
 
   Future<void> _onAuthLogoutRequested(
@@ -190,50 +283,44 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
 
-    try {
-      await _authRepository.signOut();
-      emit(const AuthUnauthenticated());
-    } catch (error) {
-      emit(
-        AuthError(message: _getErrorMessage(error), errorCode: 'logout_error'),
-      );
-    }
+    final result = await _logoutUserUseCase();
+
+    result.fold(
+      (failure) => emit(
+        AuthError(
+          message: _getFailureMessage(failure),
+          errorCode: 'logout_error',
+        ),
+      ),
+      (_) => emit(const AuthUnauthenticated()),
+    );
   }
 
-  void _onAuthUserChanged(AuthUserChanged event, Emitter<AuthState> emit) {
+  Future<void> _onAuthUserChanged(
+    AuthUserChanged event,
+    Emitter<AuthState> emit,
+  ) async {
     final user = event.user;
     if (user != null) {
-      emit(AuthAuthenticated(user: user));
+      // Verificar el estado del usuario antes de emitir AuthAuthenticated
+      await _checkUserStatusAndEmit(user, emit);
     } else {
       emit(const AuthUnauthenticated());
     }
   }
 
-  String _getErrorMessage(Object error) {
-    if (error is FirebaseAuthException) {
-      switch (error.code) {
-        case 'user-not-found':
-          return 'No se encontró una cuenta con este email.';
-        case 'wrong-password':
-          return 'Contraseña incorrecta.';
-        case 'email-already-in-use':
-          return 'Este email ya está registrado.';
-        case 'weak-password':
-          return 'La contraseña es muy débil.';
-        case 'invalid-email':
-          return 'El formato del email es inválido.';
-        case 'too-many-requests':
-          return 'Demasiados intentos. Intenta más tarde.';
-        default:
-          return error.message ?? 'Error desconocido.';
-      }
-    }
-
-    if (error is Exception) {
-      return error.toString().replaceFirst('Exception: ', '');
-    }
-
-    return error.toString();
+  String _getFailureMessage(Failure failure) {
+    return switch (failure) {
+      ValidationFailure _ => failure.message,
+      NetworkFailure _ => failure.message,
+      AuthFailure _ => failure.message,
+      AuthorizationFailure _ => failure.message,
+      ServerFailure _ => failure.message,
+      NotFoundFailure _ => failure.message,
+      CacheFailure _ => failure.message,
+      UnknownFailure _ => failure.message,
+      _ => 'Error inesperado',
+    };
   }
 
   Future<void> _onAuthLoadMicrofinancierasRequested(
@@ -242,18 +329,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthMicrofinancierasLoading());
 
-    try {
-      final microfinancieras = await _authRepository
-          .getActiveMicrofinancieras();
-      emit(AuthMicrofinancierasLoaded(microfinancieras: microfinancieras));
-    } catch (error) {
-      emit(
+    final result = await _getMicrofinancierasUseCase();
+
+    result.fold(
+      (failure) => emit(
         AuthError(
-          message: _getErrorMessage(error),
+          message: _getFailureMessage(failure),
           errorCode: 'microfinancieras_load_error',
         ),
-      );
-    }
+      ),
+      (microfinancieras) =>
+          emit(AuthMicrofinancierasLoaded(microfinancieras: microfinancieras)),
+    );
   }
 
   @override

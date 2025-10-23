@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import '../core/config/firebase_config.dart';
 
 /// Script para crear microfinancieras de ejemplo en Firestore
@@ -10,7 +11,7 @@ Future<void> createSampleMicrofinancieras() async {
 
   final firestore = FirebaseFirestore.instance;
 
-  print('🏢 Creando microfinancieras de ejemplo...');
+  debugPrint('🏢 [SCRIPT] Creando microfinancieras de ejemplo...');
 
   try {
     // Microfinanciera 1: MicroFinanzas del Perú
@@ -73,14 +74,14 @@ Future<void> createSampleMicrofinancieras() async {
       },
     });
 
-    print('✅ Microfinancieras creadas exitosamente:');
-    print('   - MicroFinanzas del Perú (mf_demo_001)');
-    print('   - Crédito Express (mf_demo_002)');
-    print('   - FinanSur (mf_demo_003) [Inactiva]');
-    print('');
-    print('💡 Ahora puedes usar el login/register con estas microfinancieras');
+    debugPrint('✅ [SCRIPT] Microfinancieras creadas exitosamente:');
+    debugPrint('   - MicroFinanzas del Perú (mf_demo_001)');
+    debugPrint('   - Crédito Express (mf_demo_002)');
+    debugPrint('   - FinanSur (mf_demo_003) [Inactiva]');
+    debugPrint('');
+    debugPrint('💡 [SCRIPT] Ahora puedes usar el login/register con estas microfinancieras');
   } catch (e) {
-    print('❌ Error al crear microfinancieras: $e');
+    debugPrint('❌ [SCRIPT] Error al crear microfinancieras: $e');
   }
 }
 

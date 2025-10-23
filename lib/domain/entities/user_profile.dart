@@ -15,6 +15,9 @@ class UserProfile {
   final String? membershipId;
   final String? customerId;
   final DateTime? lastLoginAt;
+  final String? status;
+  final String? primaryRoleId;
+  final List<String> roles;
 
   UserProfile({
     required this.uid,
@@ -31,6 +34,9 @@ class UserProfile {
     this.membershipId,
     this.customerId,
     this.lastLoginAt,
+    this.status = 'pending',
+    this.primaryRoleId,
+    this.roles = const [],
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String documentId) {
@@ -65,6 +71,9 @@ class UserProfile {
       membershipId: _parseOptionalStringField(map['membershipId']),
       customerId: _parseOptionalStringField(map['customerId']),
       lastLoginAt: _parseTimestamp(map['lastLoginAt']),
+      status: _parseOptionalStringField(map['status']) ?? 'pending',
+      primaryRoleId: _parseOptionalStringField(map['primaryRoleId']),
+      roles: _parseRolesList(map['roles']),
     );
   }
 
@@ -105,6 +114,18 @@ class UserProfile {
     }
   }
 
+  // Helper method to safely parse roles list
+  static List<String> _parseRolesList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value
+          .where((item) => item is String)
+          .map((item) => item as String)
+          .toList();
+    }
+    return [];
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
@@ -121,6 +142,9 @@ class UserProfile {
       'membershipId': membershipId,
       'customerId': customerId,
       'lastLoginAt': lastLoginAt,
+      'status': status,
+      'primaryRoleId': primaryRoleId,
+      'roles': roles,
     };
   }
 
@@ -139,6 +163,9 @@ class UserProfile {
     String? membershipId,
     String? customerId,
     DateTime? lastLoginAt,
+    String? status,
+    String? primaryRoleId,
+    List<String>? roles,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -155,6 +182,9 @@ class UserProfile {
       membershipId: membershipId ?? this.membershipId,
       customerId: customerId ?? this.customerId,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      status: status ?? this.status,
+      primaryRoleId: primaryRoleId ?? this.primaryRoleId,
+      roles: roles ?? this.roles,
     );
   }
 }

@@ -2,9 +2,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/api_config.dart';
+import '../../core/logging/app_logger.dart';
 
 class BackendApiDatasource {
-  // URL del backend (desde configuración)
   final String baseUrl;
 
   BackendApiDatasource({String? baseUrl})
@@ -12,7 +12,6 @@ class BackendApiDatasource {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Obtener token de Firebase para autenticación
   Future<String> _getToken() async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Usuario no autenticado');
@@ -21,7 +20,6 @@ class BackendApiDatasource {
     return token;
   }
 
-  /// Headers comunes para todas las peticiones
   Future<Map<String, String>> _getHeaders() async {
     final token = await _getToken();
     return {
@@ -48,9 +46,44 @@ class BackendApiDatasource {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  // ============ USER NOTIFICATIONS ============
+
+  /// Notificar registro de nuevo usuario
+  Future<Map<String, dynamic>> notifyUserRegistration({
+    required String uid,
+    required String email,
+    String? displayName,
+    required String provider,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/users/notify-registration'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'uid': uid,
+          'email': email,
+          'displayName': displayName,
+          'provider': provider,
+        }),
+      );
+
+      AppLogger.info('Notification response: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to send notification: ${response.body}');
+      }
+
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      AppLogger.error('Error sending user registration notification: $e');
+      rethrow;
+    }
+  }
+
   // ============ SCORING ============
 
-  /// Calcular scoring y tomar decisión automática
   Future<Map<String, dynamic>> calculateScoring({
     required String microfinancieraId,
     required String applicationId,
@@ -73,7 +106,6 @@ class BackendApiDatasource {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  /// Obtener detalles del scoring de una aplicación
   Future<Map<String, dynamic>> getScoringDetails({
     required String microfinancieraId,
     required String applicationId,
@@ -98,13 +130,16 @@ class BackendApiDatasource {
     required String result,
     required String comments,
   }) async {
-    print('🔍 Tomando decisión manual:');
-    print('   microfinancieraId: $microfinancieraId');
-    print('   applicationId: $applicationId');
-    print('   result: $result');
+    AppLogger.api(
+      'Tomando decisión manual',
+      data: {
+        'microfinancieraId': microfinancieraId,
+        'applicationId': applicationId,
+        'result': result,
+      },
+    );
 
     final headers = await _getHeaders();
-    print('   headers: ${headers.keys}');
 
     final response = await http.post(
       Uri.parse('$baseUrl/api/decisions/manual'),
@@ -117,8 +152,13 @@ class BackendApiDatasource {
       }),
     );
 
-    print('   statusCode: ${response.statusCode}');
-    print('   response: ${response.body}');
+    AppLogger.api(
+      'Respuesta decisión manual',
+      data: {
+        'statusCode': response.statusCode,
+        'hasResponse': response.body.isNotEmpty,
+      },
+    );
 
     if (response.statusCode != 200) {
       final errorBody = jsonDecode(response.body);
@@ -130,7 +170,6 @@ class BackendApiDatasource {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  /// Obtener estadísticas de decisiones
   Future<Map<String, dynamic>> getDecisionStats({
     required String microfinancieraId,
     required DateTime startDate,
@@ -155,9 +194,6 @@ class BackendApiDatasource {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  // ============ APLICACIONES ============
-
-  /// Obtener aplicaciones asignadas a un agente
   Future<List<dynamic>> getAssignedApplications({
     required String microfinancieraId,
     required String agentId,
@@ -204,7 +240,6 @@ class BackendApiDatasource {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  /// Tomar posesión de una aplicación
   Future<void> takeOwnership({
     required String microfinancieraId,
     required String applicationId,
@@ -227,7 +262,6 @@ class BackendApiDatasource {
     }
   }
 
-  /// Actualizar estado de una aplicación
   Future<void> updateApplicationStatus({
     required String microfinancieraId,
     required String applicationId,
@@ -252,7 +286,6 @@ class BackendApiDatasource {
     }
   }
 
-  /// Obtener estadísticas de aplicaciones
   Future<Map<String, int>> getApplicationStats({
     required String microfinancieraId,
     String? agentId,
@@ -278,9 +311,6 @@ class BackendApiDatasource {
     return Map<String, int>.from(data['stats'] as Map);
   }
 
-  // ============ REPORTES ============
-
-  /// Generar reporte de aplicaciones
   Future<List<dynamic>> generateReport({
     required String microfinancieraId,
     required DateTime dateFrom,
@@ -313,7 +343,6 @@ class BackendApiDatasource {
     return data['data'] as List<dynamic>;
   }
 
-  /// Obtener métricas de conversión
   Future<Map<String, dynamic>> getConversionMetrics({
     required String microfinancieraId,
     required DateTime dateFrom,
@@ -339,21 +368,21 @@ class BackendApiDatasource {
     return data['metrics'] as Map<String, dynamic>;
   }
 
-  // ============ DESEMBOLSOS ============
-
-  /// Desembolsar un crédito aprobado
   Future<void> disburseLoan({
     required String microfinancieraId,
     required String applicationId,
     required String requestId,
   }) async {
-    print('💰 Desembolsando crédito:');
-    print('   microfinancieraId: $microfinancieraId');
-    print('   applicationId: $applicationId');
-    print('   requestId: $requestId');
+    AppLogger.api(
+      'Desembolsando crédito',
+      data: {
+        'microfinancieraId': microfinancieraId,
+        'applicationId': applicationId,
+        'requestId': requestId,
+      },
+    );
 
     final headers = await _getHeaders();
-    print('   headers: ${headers.keys}');
 
     final response = await http.post(
       Uri.parse('$baseUrl/api/disbursements/disburse'),
@@ -365,8 +394,13 @@ class BackendApiDatasource {
       }),
     );
 
-    print('   statusCode: ${response.statusCode}');
-    print('   response: ${response.body}');
+    AppLogger.api(
+      'Respuesta desembolso',
+      data: {
+        'statusCode': response.statusCode,
+        'hasResponse': response.body.isNotEmpty,
+      },
+    );
 
     if (response.statusCode != 200) {
       final errorBody = jsonDecode(response.body);
@@ -376,7 +410,6 @@ class BackendApiDatasource {
     }
   }
 
-  /// Obtener cronograma de pagos
   Future<List<dynamic>> getRepaymentSchedule({
     required String microfinancieraId,
     required String applicationId,
@@ -398,9 +431,6 @@ class BackendApiDatasource {
     return data['schedule'] as List<dynamic>;
   }
 
-  // ============ DEBUG ============
-
-  /// Debug: Obtener conteo total de solicitudes
   Future<Map<String, dynamic>> debugApplicationsCount({
     required String microfinancieraId,
   }) async {

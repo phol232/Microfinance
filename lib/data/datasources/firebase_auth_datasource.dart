@@ -9,19 +9,23 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/config/firebase_config.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/microfinanciera.dart';
+import 'backend_api_datasource.dart';
 
 class FirebaseAuthDataSource {
   FirebaseAuthDataSource({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     GoogleSignIn? googleSignIn,
+    BackendApiDatasource? backendApi,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+       _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+       _backendApi = backendApi ?? BackendApiDatasource();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final GoogleSignIn _googleSignIn;
+  final BackendApiDatasource _backendApi;
   Future<void>? _googleInitialization;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -237,7 +241,7 @@ class FirebaseAuthDataSource {
         'linkedProviders': ['password'],
         'roles': normalizedRoles,
         'primaryRoleId': normalizedRoles.first,
-        'status': 'active',
+        'status': 'pending',
         'createdAt': serverTimestamp,
         'lastLoginAt': serverTimestamp,
         'phone': trimmedPhone.isNotEmpty ? trimmedPhone : null,
@@ -312,6 +316,19 @@ class FirebaseAuthDataSource {
         dni: trimmedDni.isNotEmpty ? trimmedDni : null,
       );
 
+      // Enviar notificación de nuevo usuario
+      try {
+        await _backendApi.notifyUserRegistration(
+          uid: user.uid,
+          email: email,
+          displayName: displayName.isNotEmpty ? displayName : null,
+          provider: 'email',
+        );
+      } catch (e) {
+        // Log error but don't fail the registration
+        print('Error enviando notificación de registro: $e');
+      }
+
       return credential;
     } on FirebaseAuthException catch (error, stackTrace) {
       _logError('registerWithEmailAndPassword', error, stackTrace);
@@ -338,6 +355,7 @@ class FirebaseAuthDataSource {
             roles: roles,
             provider: 'google',
           );
+
           unawaited(
             ensureUserDocuments(
               user,
@@ -386,12 +404,14 @@ class FirebaseAuthDataSource {
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
       if (user != null) {
+        // Verificar si es el primer login antes de crear la membresía
         final assignedRoles = await _ensureMembershipForSocialSignIn(
           user: user,
           microfinancieraId: microfinancieraId,
           roles: roles,
           provider: 'google',
         );
+
         unawaited(
           ensureUserDocuments(
             user,
@@ -492,7 +512,7 @@ class FirebaseAuthDataSource {
         'linkedProviders': [providerKey],
         'roles': newRoles,
         'primaryRoleId': newRoles.first,
-        'status': 'active',
+        'status': 'pending',
         'createdAt': now,
         'lastLoginAt': now,
         'phone': user.phoneNumber,
@@ -518,15 +538,39 @@ class FirebaseAuthDataSource {
         phone: user.phoneNumber,
         dni: null,
       );
+
+      // Enviar notificación de nuevo usuario (Google)
+      try {
+        await _backendApi.notifyUserRegistration(
+          uid: user.uid,
+          email: trimmedEmail ?? user.email ?? '',
+          displayName: trimmedDisplayName ?? user.displayName,
+          provider: 'google',
+        );
+      } catch (e) {
+        // Log error but don't fail the registration
+        print('Error enviando notificación de registro Google: $e');
+      }
+
       return newRoles;
     }
 
     final membershipData = membershipSnapshot.data() ?? <String, dynamic>{};
-    final mergedRoles = (membershipData['roles'] as List<dynamic>? ?? [])
-        .map((role) => role.toString())
-        .where((role) => role.isNotEmpty)
-        .toSet()
+
+    // Para usuarios existentes, MANTENER sus roles actuales
+    // NO agregar ni modificar roles en login
+    final existingRolesList = (membershipData['roles'] as List<dynamic>? ?? [])
+        .map((value) => value.toString())
+        .where((value) => value.isNotEmpty)
         .toList();
+
+    final mergedRolesFinal = existingRolesList.isNotEmpty
+        ? existingRolesList
+        : List<String>.from(newRoles);
+
+    if (mergedRolesFinal.isEmpty) {
+      mergedRolesFinal.add('analyst');
+    }
 
     final providerSet =
         (membershipData['linkedProviders'] as List<dynamic>? ?? [])
@@ -534,26 +578,6 @@ class FirebaseAuthDataSource {
             .where((value) => value.isNotEmpty)
             .toSet()
           ..add(providerKey);
-
-    final existingRolesList = (membershipData['roles'] as List<dynamic>? ?? [])
-        .map((value) => value.toString())
-        .where((value) => value.isNotEmpty)
-        .toList();
-
-    final roleSet = existingRolesList.toSet();
-    for (final role in newRoles) {
-      if (roleSet.add(role)) {
-        existingRolesList.add(role);
-      }
-    }
-
-    final mergedRolesFinal = existingRolesList.isEmpty
-        ? List<String>.from(newRoles)
-        : existingRolesList;
-
-    if (mergedRolesFinal.isEmpty) {
-      mergedRolesFinal.add('analyst');
-    }
 
     final existingPrimary = (membershipData['primaryRoleId'] as String?)
         ?.trim();
@@ -581,7 +605,7 @@ class FirebaseAuthDataSource {
       'userId': user.uid,
       'mfId': microfinancieraId,
       'linkedProviders': providerSet.toList(),
-      'roles': mergedRoles,
+      'roles': mergedRolesFinal,
       'primaryRoleId': resolvedPrimary,
       'status': resolvedStatus,
       'lastLoginAt': now,
@@ -605,7 +629,7 @@ class FirebaseAuthDataSource {
     await _ensureCustomerRecordForUser(
       microfinancieraRef: microfinancieraRef,
       user: user,
-      roles: mergedRoles,
+      roles: mergedRolesFinal,
       displayName: resolvedDisplayName ?? user.displayName,
       email: resolvedEmail,
       phone: resolvedPhone,
@@ -614,13 +638,13 @@ class FirebaseAuthDataSource {
     await _ensureWorkerRecordForUser(
       microfinancieraRef: microfinancieraRef,
       user: user,
-      roles: mergedRoles,
+      roles: mergedRolesFinal,
       displayName: resolvedDisplayName ?? user.displayName,
       email: resolvedEmail,
       phone: resolvedPhone,
       dni: resolvedDni,
     );
-    return mergedRoles;
+    return mergedRolesFinal;
   }
 
   Future<List<String>> _resolveRolesForMembership({
@@ -1133,7 +1157,14 @@ class FirebaseAuthDataSource {
         'microfinancieraId': microfinancieraId,
         'membershipId': membershipDoc.id,
         'customerId': customerDoc?.id,
+        'primaryRoleId':
+            stringFrom(membershipData['primaryRoleId']) ??
+            stringFrom(rootUserData?['primaryRoleId']),
         'roles': membershipData['roles'] ?? rootUserData?['primaryRoles'],
+        'status':
+            stringFrom(membershipData['status']) ??
+            stringFrom(rootUserData?['status']) ??
+            'pending',
       };
 
       return UserProfile.fromMap(profileMap, uid);
@@ -1371,9 +1402,7 @@ class FirebaseAuthDataSource {
       await customerRef.update(customerUpdates);
     }
 
-    final resolvedEmail = trimmedString(
-      membershipData['email'],
-    );
+    final resolvedEmail = trimmedString(membershipData['email']);
 
     final roles = (membershipData['roles'] as List<dynamic>? ?? [])
         .map((e) => e.toString())

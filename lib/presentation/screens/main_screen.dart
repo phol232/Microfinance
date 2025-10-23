@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:provider/provider.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/entities/user_profile.dart';
 import '../bloc/auth/auth_bloc.dart';
@@ -12,11 +12,12 @@ import '../bloc/profile/profile_state.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
-import 'applications_screen.dart';
-import 'home_screen.dart';
-import 'loans_screen.dart';
-import 'reports_screen.dart';
+import 'main/applications_screen.dart';
+import 'main/dashboard_screen.dart';
+import 'main/loans_screen.dart';
+import 'main/reports_screen.dart';
 import 'settings_screen.dart';
+import 'pending_approval_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -29,7 +30,7 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const HomeScreen(),
+    const DashboardScreen(),
     const ApplicationsScreen(),
     const LoansScreen(),
     const ReportsScreen(),
@@ -37,7 +38,7 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   final List<String> _screenTitles = const [
-    'Inicio',
+    'Dashboard',
     'Solicitudes',
     'Préstamos',
     'Reportes',
@@ -75,6 +76,52 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
+    final profileState = context.watch<ProfileBloc>().state;
+
+    // Validación de acceso no autorizado
+    if (authState is AuthUnauthorized) {
+      // El AuthWrapper ya maneja este caso, pero por seguridad adicional
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<AuthBloc>().add(const AuthLogoutRequested());
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // Si el usuario está en estado pendiente, mostrar pantalla de aprobación
+    if (authState is AuthPending) {
+      return const PendingApprovalScreen();
+    }
+
+    if (authState is AuthAuthenticated && profileState.profile != null) {
+      final profile = profileState.profile!;
+      if (profile.primaryRoleId != null && profile.primaryRoleId != 'analyst') {
+        // Cerrar sesión automáticamente si el rol cambió
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          debugPrint(
+            '❌ RBAC MainScreen: Rol inválido detectado: ${profile.primaryRoleId}',
+          );
+          context.read<AuthBloc>().add(const AuthLogoutRequested());
+        });
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+
+      // Verificar status en tiempo real
+      if (profile.status == 'pending') {
+        return const PendingApprovalScreen();
+      }
+
+      if (profile.status != null && profile.status != 'approved') {
+        // Cerrar sesión automáticamente si el status cambió
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          debugPrint(
+            '❌ RBAC MainScreen: Status inválido detectado: ${profile.status}',
+          );
+          context.read<AuthBloc>().add(const AuthLogoutRequested());
+        });
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+    }
+
     final AppUser? user = authState is AuthAuthenticated
         ? authState.user
         : null;
