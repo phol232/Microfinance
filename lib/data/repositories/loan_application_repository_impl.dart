@@ -9,6 +9,14 @@ class LoanApplicationRepositoryImpl implements LoanApplicationRepository {
       : _dataSource = dataSource;
 
   @override
+  Future<String> createApplication(
+    String microfinancieraId,
+    LoanApplication application,
+  ) async {
+    return await _dataSource.createApplication(microfinancieraId, application);
+  }
+
+  @override
   Future<List<LoanApplication>> getAllApplications(String microfinancieraId) async {
     return await _dataSource.getAllApplications(microfinancieraId);
   }

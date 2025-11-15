@@ -98,6 +98,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
       builder: (context, state) {
         if (state.status == IntakeRequestStatus.loading) {
@@ -116,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -124,27 +127,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   'Dashboard',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
+                    fontSize: screenWidth * 0.07, // 7% del ancho
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: screenHeight * 0.01), // 1% de la altura
                 Text(
                   'Resumen de solicitudes y estado de pipeline',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[700],
+                    fontSize: screenWidth * 0.035, // 3.5% del ancho
+                  ),
                 ),
-                const SizedBox(height: 24),
-                _buildMetrics(normalized),
-                const SizedBox(height: 24),
+                SizedBox(height: screenHeight * 0.03), // 3% de la altura
+                _buildMetrics(context, normalized),
+                SizedBox(height: screenHeight * 0.03), // 3% de la altura
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: _getDailyDisbursements(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Card(
+                      return Card(
                         elevation: 2,
                         child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
+                          padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
+                          child: const Center(child: CircularProgressIndicator()),
                         ),
                       );
                     }
@@ -156,7 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: screenHeight * 0.03), // 3% de la altura
                 _PieChartCard(normalized: normalized),
               ],
             ),
@@ -295,34 +300,44 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: screenWidth * 0.035, // 3.5% del ancho
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: screenHeight * 0.01), // 1% de la altura
             Container(
-              width: 40,
-              height: 40,
+              width: screenWidth * 0.1, // 10% del ancho
+              height: screenWidth * 0.1, // 10% del ancho (mantener cuadrado)
               decoration: BoxDecoration(
                 color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(screenWidth * 0.03), // 3% del ancho
               ),
-              child: Icon(Icons.analytics, color: color),
+              child: Icon(
+                Icons.analytics, 
+                color: color,
+                size: screenWidth * 0.06, // 6% del ancho
+              ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: screenHeight * 0.01), // 1% de la altura
             Text(
               value.toString(),
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: color,
+                fontSize: screenWidth * 0.05, // 5% del ancho
               ),
               textAlign: TextAlign.center,
             ),
@@ -548,73 +563,76 @@ class _LegendChip extends StatelessWidget {
   }
 }
 
-Widget _buildMetrics(Map<String, int> normalized) {
-  return Column(
-    children: [
-      // Fila 1: Solo Total
-      Row(
-        children: [
-          Expanded(
-            child: _MetricCard(
-              title: 'Total solicitudes',
-              value: normalized['total'] ?? 0,
-              color: Colors.blue,
+  Widget _buildMetrics(BuildContext context, Map<String, int> normalized) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    return Column(
+      children: [
+        // Fila 1: Solo Total
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Total solicitudes',
+                value: normalized['total'] ?? 0,
+                color: Colors.blue,
+              ),
             ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 16),
+          ],
+        ),
+        SizedBox(height: screenHeight * 0.02), // 2% de la altura
 
-      // Fila 2: Aprobadas, Rechazadas, Pendientes
-      Row(
-        children: [
-          Expanded(
-            child: _MetricCard(
-              title: 'Aprobadas',
-              value: normalized['aprobadas'] ?? 0,
-              color: Colors.green,
+        // Fila 2: Aprobadas, Rechazadas, Pendientes
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Aprobadas',
+                value: normalized['aprobadas'] ?? 0,
+                color: Colors.green,
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _MetricCard(
-              title: 'Rechazadas',
-              value: normalized['rechazadas'] ?? 0,
-              color: Colors.red,
+            SizedBox(width: screenWidth * 0.04), // 4% del ancho
+            Expanded(
+              child: _MetricCard(
+                title: 'Rechazadas',
+                value: normalized['rechazadas'] ?? 0,
+                color: Colors.red,
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _MetricCard(
-              title: 'Pendientes',
-              value: normalized['pendientes'] ?? 0,
-              color: Colors.orange,
+            SizedBox(width: screenWidth * 0.04), // 4% del ancho
+            Expanded(
+              child: _MetricCard(
+                title: 'Pendientes',
+                value: normalized['pendientes'] ?? 0,
+                color: Colors.orange,
+              ),
             ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 16),
+          ],
+        ),
+        SizedBox(height: screenHeight * 0.02), // 2% de la altura
 
-      // Fila 3: Desembolsadas, En revisión
-      Row(
-        children: [
-          Expanded(
-            child: _MetricCard(
-              title: 'Desembolsadas',
-              value: normalized['desembolsadas'] ?? 0,
-              color: Colors.purple,
+        // Fila 3: Desembolsadas, En revisión
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Desembolsadas',
+                value: normalized['desembolsadas'] ?? 0,
+                color: Colors.purple,
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _MetricCard(
-              title: 'En revisión',
-              value: normalized['en_revision'] ?? 0,
-              color: Colors.teal,
+            SizedBox(width: screenWidth * 0.04), // 4% del ancho
+            Expanded(
+              child: _MetricCard(
+                title: 'En revisión',
+                value: normalized['en_revision'] ?? 0,
+                color: Colors.teal,
+              ),
             ),
-          ),
-        ],
-      ),
-    ],
-  );
+          ],
+        ),
+      ],
+    );
 }

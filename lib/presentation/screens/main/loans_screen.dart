@@ -2,6 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../bloc/profile/profile_bloc.dart';
+import '../../bloc/profile/profile_state.dart';
+import '../../bloc/transaction/transaction_bloc.dart';
+import '../../bloc/card/card_bloc.dart';
+import '../../bloc/card/card_event.dart';
+import '../../utils/product_colors.dart';
+import '../loan_schedule_screen.dart';
+import '../../../data/repositories/transaction_repository_impl.dart';
+import '../../../data/datasources/transaction_datasource.dart';
+import '../../../data/repositories/card_repository_impl.dart';
+import '../../../data/datasources/card_datasource.dart';
+import '../../../domain/usecases/transaction/get_transaction_history_usecase.dart';
+import '../../../domain/usecases/transaction/process_payment_usecase.dart';
+import '../../../domain/usecases/transaction/process_disbursement_usecase.dart';
+import '../../../domain/usecases/transaction/get_card_transactions_usecase.dart';
+import '../../../domain/usecases/card/get_user_cards_usecase.dart';
+import '../../../domain/usecases/card/request_card_usecase.dart';
+import '../../../domain/usecases/card/get_cards_by_account_usecase.dart';
+import '../../../domain/usecases/transaction/get_account_balance_usecase.dart';
+import '../../../services/payment_card_service.dart';
+import '../../../services/transaction_service.dart';
 
 class LoansScreen extends StatefulWidget {
   const LoansScreen({Key? key}) : super(key: key);
@@ -13,7 +35,12 @@ class LoansScreen extends StatefulWidget {
 class _LoansScreenState extends State<LoansScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final String _microfinancieraId = 'mf_demo_001';
+  String _microfinancieraIdFallback = 'mf_demo_001';
+
+  String _resolveMicrofinancieraId(BuildContext context) {
+    final profile = context.read<ProfileBloc>().state.profile;
+    return profile?.microfinancieraId ?? _microfinancieraIdFallback;
+  }
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'es_PE',
@@ -23,335 +50,106 @@ class _LoansScreenState extends State<LoansScreen> {
 
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
 
-  Stream<QuerySnapshot> _getLoansStream() {
-    return _firestore
-        .collection('microfinancieras')
-        .doc(_microfinancieraId)
-        .collection('loanApplications')
-        .where('status', isEqualTo: 'disbursed')
-        .snapshots();
-  }
-
-  Future<List<Map<String, dynamic>>> _getRepaymentSchedule(
-    String loanId,
-  ) async {
-    final snapshot = await _firestore
-        .collection('microfinancieras')
-        .doc(_microfinancieraId)
-        .collection('loanApplications')
-        .doc(loanId)
-        .collection('repaymentSchedule')
-        .get();
-
-    final schedule = snapshot.docs.map((doc) {
-      final data = doc.data();
-      return {
-        'installmentNumber': data['installmentNumber'] ?? 0,
-        'dueDate': (data['dueDate'] as Timestamp).toDate(),
-        'totalPayment': data['totalPayment'] ?? 0.0,
-        'principal': data['principal'] ?? 0.0,
-        'interest': data['interest'] ?? 0.0,
-        'remainingBalance': data['remainingBalance'] ?? 0.0,
-        'status': data['status'] ?? 'pending',
-      };
-    }).toList();
-
-    schedule.sort(
-      (a, b) => (a['installmentNumber'] as int).compareTo(
-        b['installmentNumber'] as int,
-      ),
-    );
-
-    return schedule;
-  }
-
-  void _showScheduleModal(
-    BuildContext context,
-    String loanId,
-    String clientName,
-    double loanAmount,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Cronograma de Pagos',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                clientName,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                _currencyFormat.format(loanAmount),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              // Schedule table
-              Expanded(
-                child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _getRepaymentSchedule(loanId),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    }
-
-                    final schedule = snapshot.data ?? [];
-
-                    return SingleChildScrollView(
-                      controller: scrollController,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          columnSpacing: 12,
-                          horizontalMargin: 16,
-                          headingRowHeight: 48,
-                          dataRowHeight: 56,
-                          headingRowColor: MaterialStateProperty.all(
-                            Colors.grey[100],
-                          ),
-                          columns: const [
-                            DataColumn(
-                              label: Text(
-                                '#',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Fecha',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Monto',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              numeric: true,
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Capital',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              numeric: true,
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Interés',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              numeric: true,
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Saldo',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              numeric: true,
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Estado',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                          rows: schedule.map((payment) {
-                            final status = payment['status'] as String;
-                            return DataRow(
-                              color: MaterialStateProperty.resolveWith<Color?>((
-                                Set<MaterialState> states,
-                              ) {
-                                if (status == 'paid') {
-                                  return Colors.green.withOpacity(0.1);
-                                } else if (status == 'overdue') {
-                                  return Colors.red.withOpacity(0.1);
-                                }
-                                return null;
-                              }),
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    '${payment['installmentNumber']}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    _dateFormat.format(
-                                      payment['dueDate'] as DateTime,
-                                    ),
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    _currencyFormat.format(
-                                      payment['totalPayment'],
-                                    ),
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    _currencyFormat.format(
-                                      payment['principal'],
-                                    ),
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    _currencyFormat.format(payment['interest']),
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    _currencyFormat.format(
-                                      payment['remainingBalance'],
-                                    ),
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                ),
-                                DataCell(_buildStatusBadge(status)),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    String text;
-
-    switch (status) {
-      case 'paid':
-        color = Colors.green;
-        text = 'Pagado';
-        break;
-      case 'overdue':
-        color = Colors.red;
-        text = 'Vencido';
-        break;
-      case 'pending':
-      default:
-        color = Colors.orange;
-        text = 'Pendiente';
+  Stream<QuerySnapshot> _getLoansStream(BuildContext context) {
+    final microId = _resolveMicrofinancieraId(context);
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || microId.isEmpty) {
+      return const Stream.empty();
     }
+    try {
+      return _firestore
+          .collection('microfinancieras')
+          .doc(microId)
+          .collection('loanApplications')
+          .where('status', isEqualTo: 'disbursed')
+          .where('userId', isEqualTo: uid)
+          .snapshots()
+          .handleError((error) {
+            debugPrint('Error en stream de créditos: $error');
+            // Retornar stream vacío en caso de error para evitar bucles infinitos
+            return const Stream<QuerySnapshot>.empty();
+          });
+    } catch (e) {
+      debugPrint('Error al crear stream de créditos: $e');
+      return const Stream<QuerySnapshot>.empty();
+    }
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 1),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: color,
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'disbursed':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'overdue':
+      case 'in_arrears':
+        return Colors.red;
+      case 'closed':
+      case 'paid':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'disbursed':
+        return 'Activo';
+      case 'pending':
+        return 'Pendiente';
+      case 'overdue':
+      case 'in_arrears':
+        return 'Vencido';
+      case 'closed':
+      case 'paid':
+        return 'Pagado';
+      default:
+        return status;
+    }
+  }
+
+  void _navigateToSchedule(BuildContext context, String loanId, Map<String, dynamic> loanData) {
+    final transactionRepository = TransactionRepositoryImpl(
+      datasource: TransactionDatasource(),
+    );
+    
+    final cardRepository = CardRepositoryImpl(
+      cardDataSource: CardDataSource(),
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => TransactionBloc(
+                transactionService: TransactionService(
+                  processPaymentUseCase: ProcessPaymentUseCase(transactionRepository),
+                  processDisbursementUseCase: ProcessDisbursementUseCase(transactionRepository),
+                  getTransactionHistoryUseCase: GetTransactionHistoryUseCase(transactionRepository),
+                  getCardTransactionsUseCase: GetCardTransactionsUseCase(transactionRepository),
+                  getAccountBalanceUseCase: GetAccountBalanceUseCase(transactionRepository),
+                ),
+              ),
+            ),
+            BlocProvider(
+              create: (context) => CardBloc(
+                cardRepository: cardRepository,
+                getUserCardsUseCase: GetUserCardsUseCase(cardRepository),
+                requestCardUseCase: RequestCardUseCase(cardRepository),
+                getCardsByAccountUseCase: GetCardsByAccountUseCase(cardRepository),
+              ),
+            ),
+          ],
+          child: LoanScheduleScreen(
+            loanId: loanId,
+            loanData: loanData,
+            microfinancieraId: _resolveMicrofinancieraId(context),
+          ),
         ),
       ),
     );
@@ -360,27 +158,80 @@ class _LoansScreenState extends State<LoansScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mis Créditos'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {
+                // Forzar reconstrucción del stream
+              });
+            },
+            tooltip: 'Actualizar',
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _getLoansStream(),
+        stream: _getLoansStream(context),
         builder: (context, snapshot) {
+          // Manejo de estados de conexión con timeout
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            // Mostrar loading solo por un tiempo limitado
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Cargando créditos...'),
+                ],
+              ),
+            );
           }
 
           if (snapshot.hasError) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => setState(() {}),
-                    child: const Text('Reintentar'),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red[300],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error al cargar créditos',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${snapshot.error}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          // Forzar reconstrucción
+                        });
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -389,26 +240,36 @@ class _LoansScreenState extends State<LoansScreen> {
 
           if (loans.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.account_balance_wallet_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No tienes préstamos activos',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Cuando tu solicitud sea aprobada\ny desembolsada, aparecerá aquí',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 64,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Aún no tienes préstamos desembolsados',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Cuando tengas créditos activos aparecerán aquí',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[500],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -417,97 +278,355 @@ class _LoansScreenState extends State<LoansScreen> {
             padding: const EdgeInsets.all(16),
             itemCount: loans.length,
             itemBuilder: (context, index) {
-              final loanDoc = loans[index];
-              final loanData = loanDoc.data() as Map<String, dynamic>;
-              final financialInfo =
-                  loanData['financialInfo'] as Map<String, dynamic>? ?? {};
-              final personalInfo =
-                  loanData['personalInfo'] as Map<String, dynamic>? ?? {};
-              final disbursedAt = loanData['disbursedAt'] as Timestamp?;
+              final doc = loans[index];
+              final data = doc.data() as Map<String, dynamic>;
+              
+              // Extraer información del crédito
+              final personalInfo = data['personalInfo'] as Map<String, dynamic>? ?? {};
+              final financialInfo = data['financialInfo'] as Map<String, dynamic>? ?? {};
+              final productInfo = data['product'] as Map<String, dynamic>? ?? {};
+              
+              final clientName = '${personalInfo['firstName'] ?? ''} ${personalInfo['lastName'] ?? ''}'.trim();
+              final displayName = clientName.isNotEmpty ? clientName : 'Cliente';
+              final amount = (financialInfo['loanAmount'] ?? 0.0) as num;
+              final termMonths = financialInfo['loanTermMonths'] ?? 0;
+              final rate = (productInfo['rateNominal'] ?? 0.0) as num;
+              final productCode = productInfo['code'] ?? '';
+              final productName = productInfo['name'] ?? 'Crédito';
+              final status = data['status'] ?? 'disbursed';
+              final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+              final microId = _resolveMicrofinancieraId(context);
 
-              final clientName =
-                  '${personalInfo['firstName'] ?? ''} ${personalInfo['lastName'] ?? ''}'
-                      .trim();
-
-              return Card(
+              return Container(
                 margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      ProductColors.getColorByCode(productCode).withOpacity(0.1),
+                      ProductColors.getColorByCode(productCode).withOpacity(0.05),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: ProductColors.getColorByCode(productCode).withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Monto del préstamo
-                      Text(
-                        _currencyFormat.format(
-                          financialInfo['loanAmount'] ?? 0,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Nombre del cliente
-                      if (clientName.isNotEmpty)
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person,
-                              size: 16,
-                              color: Colors.grey,
+                      // Header con nombre del producto y estado
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: ProductColors.getColorByCode(productCode),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              clientName,
+                            child: Icon(
+                              ProductColors.getIconByCode(productCode),
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  productName,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  'Crédito Activo',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(status),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _getStatusText(status),
                               style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
                               ),
                             ),
-                          ],
-                        ),
-                      const SizedBox(height: 4),
-
-                      // Fecha de desembolso
-                      Text(
-                        'Desembolsado: ${disbursedAt != null ? _dateFormat.format(disbursedAt.toDate()) : 'N/A'}',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Información adicional
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 8,
-                        children: [
-                          _InfoChip(
-                            icon: Icons.calendar_today,
-                            label:
-                                '${financialInfo['loanTermMonths'] ?? 0} meses',
-                          ),
-                          _InfoChip(
-                            icon: Icons.trending_up,
-                            label: '${loanData['interestRate'] ?? 0}% anual',
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
+                      
+                      // Monto Aprobado destacado
+                      Text(
+                        'Monto Aprobado',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _currencyFormat.format(amount),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: ProductColors.getColorByCode(productCode),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Cargar y mostrar indicadores de progreso
+                      FutureBuilder<QuerySnapshot>(
+                        future: _firestore
+                            .collection('microfinancieras')
+                            .doc(microId)
+                            .collection('loanApplications')
+                            .doc(doc.id)
+                            .collection('repaymentSchedule')
+                            .get(),
+                        builder: (context, scheduleSnapshot) {
+                          if (scheduleSnapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
 
-                      // Botón para ver cronograma
+                          if (scheduleSnapshot.hasError || scheduleSnapshot.data == null) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final scheduleDocs = scheduleSnapshot.data!.docs;
+                          if (scheduleDocs.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+
+                          // Calcular indicadores
+                          int paidCount = 0;
+                          double totalPaid = 0.0;
+                          double monthlyPayment = 0.0;
+                          double totalLoanAmount = 0.0; // Monto total del préstamo (todas las cuotas)
+
+                          for (var scheduleDoc in scheduleDocs) {
+                            final scheduleData = scheduleDoc.data() as Map<String, dynamic>;
+                            final scheduleStatus = scheduleData['status'] ?? 'pending';
+                            final totalPayment = (scheduleData['totalPayment'] as num?)?.toDouble() ?? 0.0;
+                            
+                            // Sumar todas las cuotas para obtener el monto total del préstamo
+                            totalLoanAmount += totalPayment;
+                            
+                            if (monthlyPayment == 0.0 && totalPayment > 0) {
+                              monthlyPayment = totalPayment;
+                            }
+                            
+                            if (scheduleStatus == 'paid') {
+                              paidCount++;
+                              totalPaid += totalPayment;
+                            }
+                          }
+
+                          // Calcular saldo pendiente: suma de todas las cuotas pendientes
+                          double pendingBalance = totalLoanAmount - totalPaid;
+
+                          final totalInstallments = termMonths;
+                          final progressPercentage = totalInstallments > 0 
+                              ? (paidCount / totalInstallments) * 100 
+                              : 0.0;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Progreso de Pago
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Progreso de Pago',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  Text(
+                                    '${progressPercentage.toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: ProductColors.getColorByCode(productCode),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: progressPercentage / 100,
+                                  minHeight: 8,
+                                  backgroundColor: Colors.grey[200],
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    ProductColors.getColorByCode(productCode),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              
+                              // Información en filas
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildIndicatorItem(
+                                      'Tasa',
+                                      '${rate.toStringAsFixed(2)}%',
+                                      Icons.percent,
+                                      ProductColors.getColorByCode(productCode),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _buildIndicatorItem(
+                                      'Plazo',
+                                      '$totalInstallments meses',
+                                      Icons.calendar_today,
+                                      ProductColors.getColorByCode(productCode),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildIndicatorItem(
+                                      'Cuota Mensual',
+                                      _currencyFormat.format(monthlyPayment),
+                                      Icons.description,
+                                      ProductColors.getColorByCode(productCode),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _buildIndicatorItem(
+                                      'Pagadas',
+                                      '$paidCount/$totalInstallments',
+                                      Icons.check_circle,
+                                      Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // Total Pagado y Saldo Pendiente
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Total Pagado',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _currencyFormat.format(totalPaid),
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Saldo Pendiente',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _currencyFormat.format(pendingBalance),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: ProductColors.getColorByCode(productCode),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                          );
+                        },
+                      ),
+                      
+                      // Fecha de desembolso
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Desembolsado: ${_dateFormat.format(createdAt)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Botón Ver Cronograma
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () => _showScheduleModal(
-                            context,
-                            loanDoc.id,
-                            clientName,
-                            (financialInfo['loanAmount'] ?? 0).toDouble(),
-                          ),
-                          icon: const Icon(Icons.calendar_month),
-                          label: const Text('Ver Cronograma de Pagos'),
+                          onPressed: () => _navigateToSchedule(context, doc.id, data),
+                          icon: const Icon(Icons.schedule, size: 18),
+                          label: const Text('Ver Cronograma de Cuotas'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            backgroundColor: ProductColors.getColorByCode(productCode),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ),
@@ -521,22 +640,67 @@ class _LoansScreenState extends State<LoansScreen> {
       ),
     );
   }
-}
 
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _InfoChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildInfoItem(String label, String value, IconData icon) {
+    return Column(
       children: [
-        Icon(icon, size: 14, color: Colors.grey[600]),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Icon(
+          icon,
+          size: 20,
+          color: Colors.grey[600],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIndicatorItem(String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: color,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

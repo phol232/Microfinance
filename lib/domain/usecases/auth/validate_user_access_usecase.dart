@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 import '../../core/error/failures.dart';
 import '../../entities/app_user.dart';
+import '../../entities/user_profile.dart';
 import '../../repositories/auth_repository.dart';
 import '../usecase.dart';
 
@@ -15,8 +16,11 @@ class ValidateUserAccessUseCase
     ValidateUserAccessParams params,
   ) async {
     try {
-      // Obtener el perfil del usuario
-      final profile = await _repository.fetchUserProfile(params.user.uid);
+      // ✅ OPTIMIZACIÓN: Usar perfil cacheado si está disponible
+      // Esto evita hacer otra consulta a Firestore
+      final profile =
+          params.cachedProfile ??
+          await _repository.fetchUserProfile(params.user.uid);
 
       // Si no se puede obtener el perfil, denegar acceso
       if (profile == null) {
@@ -43,13 +47,13 @@ class ValidateUserAccessUseCase
         );
       }
 
-      if (primaryRole != 'analyst') {
+      // Permitir acceso tanto a 'analyst' como a 'customer'
+      if (primaryRole != 'analyst' && primaryRole != 'customer') {
         return Right(
           UserAccessValidation.unauthorized(
             user: params.user,
             reason: 'invalid_role',
-            message:
-                'Esta aplicación es solo para asesores financieros. Por favor, usa el portal web.',
+            message: 'Tu rol no tiene acceso a esta app móvil.',
           ),
         );
       }
@@ -103,17 +107,21 @@ class ValidateUserAccessUseCase
 class ValidateUserAccessParams {
   final AppUser user;
 
-  const ValidateUserAccessParams({required this.user});
+  /// ✅ OPTIMIZACIÓN: Perfil cacheado opcional para evitar consultas duplicadas
+  final UserProfile? cachedProfile;
+
+  const ValidateUserAccessParams({required this.user, this.cachedProfile});
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ValidateUserAccessParams &&
           runtimeType == other.runtimeType &&
-          user == other.user;
+          user == other.user &&
+          cachedProfile == other.cachedProfile;
 
   @override
-  int get hashCode => user.hashCode;
+  int get hashCode => user.hashCode ^ cachedProfile.hashCode;
 }
 
 /// Resultado de la validación de acceso

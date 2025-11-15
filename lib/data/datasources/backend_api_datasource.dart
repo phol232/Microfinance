@@ -46,41 +46,42 @@ class BackendApiDatasource {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  // TODO: Implementar notificaciones más adelante
   // ============ USER NOTIFICATIONS ============
 
-  /// Notificar registro de nuevo usuario
-  Future<Map<String, dynamic>> notifyUserRegistration({
-    required String uid,
-    required String email,
-    String? displayName,
-    required String provider,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/users/notify-registration'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'uid': uid,
-          'email': email,
-          'displayName': displayName,
-          'provider': provider,
-        }),
-      );
+  // /// Notificar registro de nuevo usuario
+  // Future<Map<String, dynamic>> notifyUserRegistration({
+  //   required String uid,
+  //   required String email,
+  //   String? displayName,
+  //   required String provider,
+  // }) async {
+  //   try {
+  //     final response = await http.post(
+  //       Uri.parse('$baseUrl/api/users/notify-registration'),
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: jsonEncode({
+  //         'uid': uid,
+  //         'email': email,
+  //         'displayName': displayName,
+  //         'provider': provider,
+  //       }),
+  //     );
 
-      AppLogger.info('Notification response: ${response.statusCode} - ${response.body}');
+  //     AppLogger.info('Notification response: ${response.statusCode} - ${response.body}');
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to send notification: ${response.body}');
-      }
+  //     if (response.statusCode != 200) {
+  //       throw Exception('Failed to send notification: ${response.body}');
+  //     }
 
-      return jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (e) {
-      AppLogger.error('Error sending user registration notification: $e');
-      rethrow;
-    }
-  }
+  //     return jsonDecode(response.body) as Map<String, dynamic>;
+  //   } catch (e) {
+  //     AppLogger.error('Error sending user registration notification: $e');
+  //     rethrow;
+  //   }
+  // }
 
   // ============ SCORING ============
 

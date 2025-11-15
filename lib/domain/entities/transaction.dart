@@ -12,6 +12,7 @@ class FinancialTransaction {
     required this.currency,
     required this.branchId,
     required this.createdAt,
+    this.metadata,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class FinancialTransaction {
   final String currency;
   final String branchId;
   final DateTime createdAt;
+  final Map<String, dynamic>? metadata;
 
   factory FinancialTransaction.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
@@ -40,6 +42,7 @@ class FinancialTransaction {
       currency: data['currency'] ?? 'PEN',
       branchId: data['branchId'] ?? '',
       createdAt: _parseTimestamp(data['createdAt']),
+      metadata: data['metadata'] as Map<String, dynamic>?,
     );
   }
 
@@ -54,6 +57,7 @@ class FinancialTransaction {
       'currency': currency,
       'branchId': branchId,
       'createdAt': Timestamp.fromDate(createdAt),
+      if (metadata != null) 'metadata': metadata,
     };
   }
 

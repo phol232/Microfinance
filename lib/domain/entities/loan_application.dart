@@ -334,6 +334,7 @@ class PersonalInfo {
   final String birthDate;
   final String nationality;
   final String maritalStatus;
+  final String? gender;
   final int? dependents;
 
   PersonalInfo({
@@ -344,6 +345,7 @@ class PersonalInfo {
     required this.birthDate,
     required this.nationality,
     required this.maritalStatus,
+    this.gender,
     this.dependents,
   });
 
@@ -356,6 +358,7 @@ class PersonalInfo {
       birthDate: map['birthDate'] ?? '',
       nationality: map['nationality'] ?? '',
       maritalStatus: map['maritalStatus'] ?? '',
+      gender: map['gender'],
       dependents: map['dependents'],
     );
   }
@@ -369,6 +372,7 @@ class PersonalInfo {
       'birthDate': birthDate,
       'nationality': nationality,
       'maritalStatus': maritalStatus,
+      if (gender != null) 'gender': gender,
       if (dependents != null) 'dependents': dependents,
     };
   }
@@ -382,6 +386,8 @@ class ContactInfo {
   final String department;
   final String mobilePhone;
   final String email;
+  final String? landlinePhone;
+  final String? locationReference;
   final String? homeReference;
 
   ContactInfo({
@@ -391,6 +397,8 @@ class ContactInfo {
     required this.department,
     required this.mobilePhone,
     required this.email,
+    this.landlinePhone,
+    this.locationReference,
     this.homeReference,
   });
 
@@ -402,6 +410,8 @@ class ContactInfo {
       department: map['department'] ?? '',
       mobilePhone: map['mobilePhone'] ?? '',
       email: map['email'] ?? '',
+      landlinePhone: map['landlinePhone'],
+      locationReference: map['locationReference'],
       homeReference: map['homeReference'],
     );
   }
@@ -414,6 +424,8 @@ class ContactInfo {
       'department': department,
       'mobilePhone': mobilePhone,
       'email': email,
+      if (landlinePhone != null) 'landlinePhone': landlinePhone,
+      if (locationReference != null) 'locationReference': locationReference,
       if (homeReference != null) 'homeReference': homeReference,
     };
   }
@@ -428,6 +440,8 @@ class EmploymentInfo {
   final int? monthsEmployed;
   final String? contractType;
   final String? workPhone;
+  final String? workAddress;
+  final String? workExperience;
 
   EmploymentInfo({
     required this.employmentType,
@@ -437,6 +451,8 @@ class EmploymentInfo {
     this.monthsEmployed,
     this.contractType,
     this.workPhone,
+    this.workAddress,
+    this.workExperience,
   });
 
   factory EmploymentInfo.fromMap(Map<String, dynamic> map) {
@@ -448,6 +464,8 @@ class EmploymentInfo {
       monthsEmployed: map['monthsEmployed'],
       contractType: map['contractType'],
       workPhone: map['workPhone'],
+      workAddress: map['workAddress'],
+      workExperience: map['workExperience'],
     );
   }
 
@@ -460,6 +478,8 @@ class EmploymentInfo {
       if (monthsEmployed != null) 'monthsEmployed': monthsEmployed,
       if (contractType != null) 'contractType': contractType,
       if (workPhone != null) 'workPhone': workPhone,
+      if (workAddress != null) 'workAddress': workAddress,
+      if (workExperience != null) 'workExperience': workExperience,
     };
   }
 }
@@ -531,6 +551,16 @@ class AdditionalInfo {
   final bool hasGuarantee;
   final String? guaranteeDescription;
   final String? additionalComments;
+  final String? accountNumber;
+  final String? cci;
+  final String? personalReference1Name;
+  final String? personalReference1Phone;
+  final String? personalReference2Name;
+  final String? personalReference2Phone;
+  final String? commercialReference1Name;
+  final String? commercialReference1Phone;
+  final String? commercialReference2Name;
+  final String? commercialReference2Phone;
 
   AdditionalInfo({
     required this.hasCreditHistory,
@@ -539,6 +569,16 @@ class AdditionalInfo {
     required this.hasGuarantee,
     this.guaranteeDescription,
     this.additionalComments,
+    this.accountNumber,
+    this.cci,
+    this.personalReference1Name,
+    this.personalReference1Phone,
+    this.personalReference2Name,
+    this.personalReference2Phone,
+    this.commercialReference1Name,
+    this.commercialReference1Phone,
+    this.commercialReference2Name,
+    this.commercialReference2Phone,
   });
 
   factory AdditionalInfo.fromMap(Map<String, dynamic> map) {
@@ -549,6 +589,16 @@ class AdditionalInfo {
       hasGuarantee: map['hasGuarantee'] ?? false,
       guaranteeDescription: map['guaranteeDescription'],
       additionalComments: map['additionalComments'],
+      accountNumber: map['accountNumber'],
+      cci: map['cci'],
+      personalReference1Name: map['personalReference1Name'],
+      personalReference1Phone: map['personalReference1Phone'],
+      personalReference2Name: map['personalReference2Name'],
+      personalReference2Phone: map['personalReference2Phone'],
+      commercialReference1Name: map['commercialReference1Name'],
+      commercialReference1Phone: map['commercialReference1Phone'],
+      commercialReference2Name: map['commercialReference2Name'],
+      commercialReference2Phone: map['commercialReference2Phone'],
     );
   }
 
@@ -561,6 +611,16 @@ class AdditionalInfo {
       if (guaranteeDescription != null)
         'guaranteeDescription': guaranteeDescription,
       if (additionalComments != null) 'additionalComments': additionalComments,
+      if (accountNumber != null) 'accountNumber': accountNumber,
+      if (cci != null) 'cci': cci,
+      if (personalReference1Name != null) 'personalReference1Name': personalReference1Name,
+      if (personalReference1Phone != null) 'personalReference1Phone': personalReference1Phone,
+      if (personalReference2Name != null) 'personalReference2Name': personalReference2Name,
+      if (personalReference2Phone != null) 'personalReference2Phone': personalReference2Phone,
+      if (commercialReference1Name != null) 'commercialReference1Name': commercialReference1Name,
+      if (commercialReference1Phone != null) 'commercialReference1Phone': commercialReference1Phone,
+      if (commercialReference2Name != null) 'commercialReference2Name': commercialReference2Name,
+      if (commercialReference2Phone != null) 'commercialReference2Phone': commercialReference2Phone,
     };
   }
 }

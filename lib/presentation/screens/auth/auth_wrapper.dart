@@ -15,7 +15,8 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        if (state is AuthInitial || state is AuthLoading) {
+        // Solo mostrar loading en estados iniciales, no en errores
+        if (state is AuthInitial) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -36,6 +37,8 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
+        // Para AuthUnauthenticated, AuthError, AuthLoading, etc.
+        // Siempre mostrar LoginPage
         return const LoginPage();
       },
     );

@@ -6,6 +6,7 @@ import '../theme/app_typography.dart';
 class TextFieldOutlined extends StatefulWidget {
   final String label;
   final String? hint;
+  final String? helperText;
   final String? initialValue;
   final TextEditingController? controller;
   final String? Function(String?)? validator;
@@ -29,6 +30,7 @@ class TextFieldOutlined extends StatefulWidget {
     super.key,
     required this.label,
     this.hint,
+    this.helperText,
     this.initialValue,
     this.controller,
     this.validator,
@@ -90,6 +92,7 @@ class _TextFieldOutlinedState extends State<TextFieldOutlined> {
           autofillHints: widget.autofillHints,
           decoration: InputDecoration(
             hintText: widget.hint ?? widget.label,
+            helperText: widget.helperText,
             filled: true,
             fillColor: widget.enabled
                 ? AppColors.surfaceVariant

@@ -27,6 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return BlocBuilder<ProfileBloc, ProfileState>(
       builder: (context, state) {
         final profile = state.profile;
@@ -44,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: CustomScrollView(
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     RepaintBoundary(
@@ -52,11 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         userName: profile?.firstName ?? 'Usuario',
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: screenHeight * 0.03), // 3% de la altura
                     const RepaintBoundary(child: _StatsCards()),
-                    const SizedBox(height: 24),
+                    SizedBox(height: screenHeight * 0.03), // 3% de la altura
                     const RepaintBoundary(child: _QuickActions()),
-                    const SizedBox(height: 24),
+                    SizedBox(height: screenHeight * 0.03), // 3% de la altura
                     const RepaintBoundary(child: _RecentActivity()),
                   ]),
                 ),
@@ -76,6 +79,9 @@ class _WelcomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     final hour = DateTime.now().hour;
     final greeting = hour < 12
         ? 'Buenos días'
@@ -86,29 +92,32 @@ class _WelcomeCard extends StatelessWidget {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(screenWidth * 0.03), // 3% del ancho
           gradient: const LinearGradient(
             colors: [Colors.blue, Colors.blueAccent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(screenWidth * 0.05), // 5% del ancho
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '$greeting, $userName! 👋',
-              style: const TextStyle(
-                fontSize: 24,
+              style: TextStyle(
+                fontSize: screenWidth * 0.06, // 6% del ancho
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: screenHeight * 0.01), // 1% de la altura
+            Text(
               'Bienvenido a CréditoExpress',
-              style: TextStyle(fontSize: 16, color: Colors.white70),
+              style: TextStyle(
+                fontSize: screenWidth * 0.04, // 4% del ancho
+                color: Colors.white70,
+              ),
             ),
           ],
         ),
@@ -122,6 +131,8 @@ class _StatsCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
       builder: (context, state) {
         final counts = state.statusCounts;
@@ -138,14 +149,14 @@ class _StatsCards extends StatelessWidget {
                 value: '${counts.values.fold(0, (a, b) => a + b)}',
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: screenWidth * 0.03), // 3% del ancho
             Expanded(
               child: _StatCard(
                 title: 'Solicitudes pendientes',
                 value: '$total',
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: screenWidth * 0.03), // 3% del ancho
             Expanded(
               child: _StatCard(
                 title: 'Préstamos en seguimiento',
@@ -167,20 +178,29 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+            Text(
+              title, 
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: screenWidth * 0.035, // 3.5% del ancho
+              ),
+            ),
+            SizedBox(height: screenHeight * 0.01), // 1% de la altura
             Text(
               value,
-              style: Theme.of(
-                context,
-              ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: screenWidth * 0.08, // 8% del ancho
+              ),
             ),
           ],
         ),
@@ -194,19 +214,23 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Acciones rápidas',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: screenWidth * 0.05, // 5% del ancho
+          ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: screenHeight * 0.015), // 1.5% de la altura
         Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: screenWidth * 0.03, // 3% del ancho
+          runSpacing: screenHeight * 0.015, // 1.5% de la altura
           children: const [
             _QuickActionChip(
               icon: Icons.person_add_alt,
@@ -230,9 +254,14 @@ class _QuickActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return ActionChip(
-      avatar: Icon(icon, size: 18),
-      label: Text(label),
+      avatar: Icon(icon, size: screenWidth * 0.045), // 4.5% del ancho
+      label: Text(
+        label,
+        style: TextStyle(fontSize: screenWidth * 0.035), // 3.5% del ancho
+      ),
       onPressed: () {},
     );
   }
@@ -243,13 +272,16 @@ class _RecentActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
       builder: (context, state) {
         if (state.status == IntakeRequestStatus.loading) {
-          return const Card(
+          return Card(
             child: Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator()),
+              padding: EdgeInsets.all(screenWidth * 0.08), // 8% del ancho
+              child: const Center(child: CircularProgressIndicator()),
             ),
           );
         }
@@ -261,18 +293,19 @@ class _RecentActivity extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
                 child: Text(
                   'Actividad reciente',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: screenWidth * 0.05, // 5% del ancho
+                  ),
                 ),
               ),
               if (requests.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: Text('No hay solicitudes recientes')),
+                Padding(
+                  padding: EdgeInsets.all(screenWidth * 0.08), // 8% del ancho
+                  child: const Center(child: Text('No hay solicitudes recientes')),
                 )
               else
                 ...requests.map((request) {
@@ -288,6 +321,7 @@ class _RecentActivity extends StatelessWidget {
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: statusColor.withValues(alpha: 0.2),
+                      radius: screenWidth * 0.05, // 5% del ancho
                       child: Text(
                         displayName.isNotEmpty
                             ? displayName[0].toUpperCase()
@@ -295,25 +329,32 @@ class _RecentActivity extends StatelessWidget {
                         style: TextStyle(
                           color: statusColor,
                           fontWeight: FontWeight.bold,
+                          fontSize: screenWidth * 0.04, // 4% del ancho
                         ),
                       ),
                     ),
-                    title: Text(displayName),
-                    subtitle: Text(timeAgo),
+                    title: Text(
+                      displayName,
+                      style: TextStyle(fontSize: screenWidth * 0.04), // 4% del ancho
+                    ),
+                    subtitle: Text(
+                      timeAgo,
+                      style: TextStyle(fontSize: screenWidth * 0.035), // 3.5% del ancho
+                    ),
                     trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.02, // 2% del ancho
+                        vertical: screenHeight * 0.005, // 0.5% de la altura
                       ),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(screenWidth * 0.03), // 3% del ancho
                       ),
                       child: Text(
                         statusText,
                         style: TextStyle(
                           color: statusColor,
-                          fontSize: 12,
+                          fontSize: screenWidth * 0.03, // 3% del ancho
                           fontWeight: FontWeight.bold,
                         ),
                       ),

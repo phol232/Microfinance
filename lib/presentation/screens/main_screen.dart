@@ -12,10 +12,10 @@ import '../bloc/profile/profile_state.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+
 import 'main/applications_screen.dart';
-import 'main/dashboard_screen.dart';
+import 'main/accounts_screen.dart';
 import 'main/loans_screen.dart';
-import 'main/reports_screen.dart';
 import 'settings_screen.dart';
 import 'pending_approval_screen.dart';
 
@@ -30,18 +30,16 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const DashboardScreen(),
+    const AccountsScreen(),
     const ApplicationsScreen(),
     const LoansScreen(),
-    const ReportsScreen(),
-    const SettingsScreen(), // Configuración
+    const SettingsScreen(),
   ];
 
   final List<String> _screenTitles = const [
-    'Dashboard',
+    'Cuentas',
     'Solicitudes',
-    'Préstamos',
-    'Reportes',
+    'Créditos',
     'Configuración',
   ];
 
@@ -94,8 +92,9 @@ class _MainScreenState extends State<MainScreen> {
 
     if (authState is AuthAuthenticated && profileState.profile != null) {
       final profile = profileState.profile!;
-      if (profile.primaryRoleId != null && profile.primaryRoleId != 'analyst') {
-        // Cerrar sesión automáticamente si el rol cambió
+      if (profile.primaryRoleId != null &&
+          profile.primaryRoleId != 'analyst' &&
+          profile.primaryRoleId != 'customer') {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           debugPrint(
             '❌ RBAC MainScreen: Rol inválido detectado: ${profile.primaryRoleId}',
@@ -166,7 +165,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       drawer: _buildDrawer(context, user),
       body: IndexedStack(index: _selectedIndex, children: _screens),
-      bottomNavigationBar: _selectedIndex < 5 ? _buildBottomNavigation() : null,
+      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 
@@ -231,28 +230,23 @@ class _MainScreenState extends State<MainScreen> {
       },
       backgroundColor: AppColors.surface,
       indicatorColor: AppColors.primary.withOpacity(0.1),
-      destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home),
-          label: 'Inicio',
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.account_balance_outlined),
+          selectedIcon: Icon(Icons.account_balance),
+          label: 'Cuentas',
         ),
-        const NavigationDestination(
+        NavigationDestination(
           icon: Icon(Icons.description_outlined),
           selectedIcon: Icon(Icons.description),
           label: 'Solicitudes',
         ),
-        const NavigationDestination(
+        NavigationDestination(
           icon: Icon(Icons.account_balance_wallet_outlined),
           selectedIcon: Icon(Icons.account_balance_wallet),
-          label: 'Préstamos',
+          label: 'Créditos',
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.analytics_outlined),
-          selectedIcon: Icon(Icons.analytics),
-          label: 'Reportes',
-        ),
-        const NavigationDestination(
+        NavigationDestination(
           icon: Icon(Icons.settings_outlined),
           selectedIcon: Icon(Icons.settings),
           label: 'Config',
@@ -291,14 +285,14 @@ class _MainScreenState extends State<MainScreen> {
               IconButton(
                 onPressed: () {
                   setState(() {
-                    _selectedIndex = 5; // Configuración
+                    _selectedIndex = 3; // Configuración
                   });
                 },
                 icon: Icon(
-                  _selectedIndex == 5
+                  _selectedIndex == 3
                       ? Icons.settings
                       : Icons.settings_outlined,
-                  color: _selectedIndex == 5
+                  color: _selectedIndex == 3
                       ? AppColors.primary
                       : AppColors.onSurfaceVariant,
                 ),
@@ -310,19 +304,9 @@ class _MainScreenState extends State<MainScreen> {
       ),
       destinations: const [
         NavigationRailDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home),
-          label: Text('Inicio'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.people_outlined),
-          selectedIcon: Icon(Icons.people),
-          label: Text('Clientes'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.account_balance_wallet_outlined),
-          selectedIcon: Icon(Icons.account_balance_wallet),
-          label: Text('Préstamos'),
+          icon: Icon(Icons.account_balance_outlined),
+          selectedIcon: Icon(Icons.account_balance),
+          label: Text('Cuentas'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.description_outlined),
@@ -330,9 +314,9 @@ class _MainScreenState extends State<MainScreen> {
           label: Text('Solicitudes'),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.analytics_outlined),
-          selectedIcon: Icon(Icons.analytics),
-          label: Text('Reportes'),
+          icon: Icon(Icons.account_balance_wallet_outlined),
+          selectedIcon: Icon(Icons.account_balance_wallet),
+          label: Text('Créditos'),
         ),
       ],
     );
@@ -485,7 +469,7 @@ class _MainScreenState extends State<MainScreen> {
                                 ),
                               ),
                               child: Text(
-                                'Asesor financiero',
+                                'Cliente',
                                 style: AppTypography.labelLarge.copyWith(
                                   color: AppColors.onPrimary,
                                 ),
@@ -495,9 +479,7 @@ class _MainScreenState extends State<MainScreen> {
                             IconButton(
                               onPressed: () {
                                 Navigator.pop(context);
-                                setState(
-                                  () => _selectedIndex = 4,
-                                ); // Configuración
+                                setState(() => _selectedIndex = 3);
                               },
                               icon: const Icon(
                                 Icons.settings,
@@ -524,9 +506,9 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   children: [
                     _buildDrawerItem(
-                      icon: Icons.home_outlined,
-                      selectedIcon: Icons.home,
-                      title: 'Inicio',
+                      icon: Icons.account_balance_outlined,
+                      selectedIcon: Icons.account_balance,
+                      title: 'Cuentas',
                       index: 0,
                     ),
                     _buildDrawerItem(
@@ -538,14 +520,8 @@ class _MainScreenState extends State<MainScreen> {
                     _buildDrawerItem(
                       icon: Icons.account_balance_wallet_outlined,
                       selectedIcon: Icons.account_balance_wallet,
-                      title: 'Préstamos',
+                      title: 'Creditos',
                       index: 2,
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.analytics_outlined,
-                      selectedIcon: Icons.analytics,
-                      title: 'Reportes',
-                      index: 3,
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     Divider(
@@ -559,7 +535,7 @@ class _MainScreenState extends State<MainScreen> {
                       icon: Icons.settings_outlined,
                       selectedIcon: Icons.settings,
                       title: 'Configuración',
-                      index: 4,
+                      index: 3,
                     ),
                   ],
                 ),

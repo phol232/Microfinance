@@ -9,34 +9,37 @@ class IntakeRequestDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle de Solicitud'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share),
+            icon: Icon(Icons.share, size: screenWidth * 0.06),
             onPressed: () {
             },
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildStatusCard(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildContactInfo(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildApplicantInfo(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildRequestedInfo(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildRoutingInfo(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildRiskInfo(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildTimestamps(context),
           ],
         ),
@@ -45,16 +48,18 @@ class IntakeRequestDetailPage extends StatelessWidget {
   }
 
   Widget _buildStatusCard(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     final statusColor = _getStatusColor(request.status);
     final statusText = _getStatusText(request.status);
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(screenWidth * 0.03),
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
@@ -62,21 +67,22 @@ class IntakeRequestDetailPage extends StatelessWidget {
               child: Icon(
                 _getStatusIcon(request.status),
                 color: statusColor,
-                size: 32,
+                size: screenWidth * 0.08,
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: screenWidth * 0.04),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Estado', style: Theme.of(context).textTheme.bodySmall),
-                  const SizedBox(height: 4),
+                  Text('Estado', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: screenWidth * 0.032)),
+                  SizedBox(height: screenHeight * 0.005),
                   Text(
                     statusText,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: statusColor,
                       fontWeight: FontWeight.bold,
+                      fontSize: screenWidth * 0.045,
                     ),
                   ),
                 ],
@@ -89,39 +95,43 @@ class IntakeRequestDetailPage extends StatelessWidget {
   }
 
   Widget _buildContactInfo(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.contact_phone, size: 20),
-                const SizedBox(width: 8),
+                Icon(Icons.contact_phone, size: screenWidth * 0.05),
+                SizedBox(width: screenWidth * 0.02),
                 Text(
                   'Información de Contacto',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
+                    fontSize: screenWidth * 0.04,
                   ),
                 ),
               ],
             ),
-            const Divider(height: 24),
+            Divider(height: screenHeight * 0.03),
             _buildInfoRow(
               context,
               icon: Icons.phone,
               label: 'Teléfono',
               value: request.contact.phone,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: screenHeight * 0.015),
             _buildInfoRow(
               context,
               icon: Icons.email,
               label: 'Email',
               value: request.contact.email,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: screenHeight * 0.015),
             _buildInfoRow(
               context,
               icon: Icons.verified,
@@ -383,11 +393,14 @@ class IntakeRequestDetailPage extends StatelessWidget {
     required String value,
     Color? valueColor,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey),
-        const SizedBox(width: 12),
+        Icon(icon, size: screenWidth * 0.045, color: Colors.grey),
+        SizedBox(width: screenWidth * 0.03),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,14 +409,18 @@ class IntakeRequestDetailPage extends StatelessWidget {
                 label,
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                ).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                  fontSize: screenWidth * 0.032,
+                ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: screenHeight * 0.005),
               Text(
                 value,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: valueColor,
                   fontWeight: FontWeight.w500,
+                  fontSize: screenWidth * 0.038,
                 ),
               ),
             ],

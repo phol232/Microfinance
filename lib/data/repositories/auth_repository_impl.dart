@@ -3,6 +3,7 @@ import '../models/app_user_mapper.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/microfinanciera.dart';
+import '../../domain/entities/login_result.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -21,18 +22,17 @@ class AuthRepositoryImpl implements AuthRepository {
       AppUserMapper.fromFirebaseUser(_dataSource.currentUser);
 
   @override
-  Future<AppUser?> signInWithEmailAndPassword({
+  Future<LoginResult?> signInWithEmailAndPassword({
     required String email,
     required String password,
     required String microfinancieraId,
   }) async {
-
-    final credential = await _dataSource.signInWithEmailAndPassword(
+    // ✅ OPTIMIZACIÓN: Retornar LoginResult con perfil incluido
+    return await _dataSource.signInWithEmailAndPassword(
       email: email,
       password: password,
       microfinancieraId: microfinancieraId,
     );
-    return AppUserMapper.fromFirebaseUser(credential?.user);
   }
 
   @override

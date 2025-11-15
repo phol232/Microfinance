@@ -59,7 +59,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _loadMicrofinancieras() async {
     if (!mounted) return;
-    context.read<AuthBloc>().add(const AuthLoadMicrofinancierasRequested());
+    try {
+      context.read<AuthBloc>().add(const AuthLoadMicrofinancierasRequested());
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Error al cargar microfinancieras. Intenta nuevamente.');
+      }
+    }
   }
 
   @override
@@ -75,9 +81,18 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthError) {
+          // Detener cualquier estado de loading cuando hay error
+          if (state.errorCode == 'microfinancieras_load_error' || 
+              state.errorCode == 'login_error' ||
+              state.errorCode == 'registration_error') {
+            // El estado de microfinancieras se maneja en el builder
+          }
           _showErrorSnackBar(state.message);
         } else if (state is AuthRegistrationSuccess ||
             state is AuthAuthenticated) {
@@ -103,6 +118,14 @@ class _RegisterPageState extends State<RegisterPage> {
               _selectedMicrofinanciera = state.microfinancieras.first;
             }
           });
+        } else if (state is AuthUnauthenticated || state is AuthInitial) {
+          // Resetear estado si vuelve a inicial
+          setState(() {
+            if (_microfinancieras.isEmpty) {
+              _microfinancieras = const [];
+              _selectedMicrofinanciera = null;
+            }
+          });
         }
       },
       builder: (context, state) {
@@ -122,36 +145,36 @@ class _RegisterPageState extends State<RegisterPage> {
                   final bool isTablet =
                       constraints.maxWidth > AppSpacing.tabletBreakpoint;
 
-                  final double maxWidth = isTablet ? 520 : constraints.maxWidth;
+                  final double maxWidth = isTablet
+                      ? screenWidth * 0.65
+                      : constraints.maxWidth; // 65% del ancho en tablet
                   final double horizontalPadding = isVerySmall
-                      ? AppSpacing.xs
-                      : (isCompact ? AppSpacing.sm : AppSpacing.screenPadding);
+                      ? screenWidth *
+                            0.02 // 2% del ancho
+                      : (isCompact
+                            ? screenWidth * 0.03
+                            : screenWidth * 0.05); // 3% o 5% del ancho
 
                   return Center(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding,
-                        vertical: AppSpacing.lg,
+                        vertical: screenHeight * 0.015, // Reducido de 3% a 1.5%
                       ),
                       child: ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: maxWidth),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildBrandSection(isCompact: isVerySmall),
-                            SizedBox(
-                              height: isVerySmall
-                                  ? AppSpacing.lg
-                                  : AppSpacing.xl,
-                            ),
+                            // Logo removido para optimizar espacio
                             _buildWelcomeSection(isCompact: isVerySmall),
                             SizedBox(
-                              height: isVerySmall
-                                  ? AppSpacing.lg
-                                  : AppSpacing.sectionSpacing,
-                            ),
+                              height: screenHeight * 0.015,
+                            ), // Reducido significativamente
                             _buildRegisterForm(isLoading),
-                            const SizedBox(height: AppSpacing.sectionSpacing),
+                            SizedBox(
+                              height: screenHeight * 0.01,
+                            ), // Reducido de 2% a 1%
                             _buildSignInPrompt(),
                           ],
                         ),
@@ -168,29 +191,34 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildBrandSection({bool isCompact = false}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     if (isCompact) {
       return Column(
         children: [
           Container(
-            padding: EdgeInsets.all(isCompact ? AppSpacing.md : AppSpacing.lg),
+            padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
             decoration: BoxDecoration(
               gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              borderRadius: BorderRadius.circular(
+                screenWidth * 0.04,
+              ), // 4% del ancho
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  blurRadius: screenWidth * 0.02, // 2% del ancho
+                  offset: Offset(0, screenHeight * 0.005), // 0.5% de la altura
                 ),
               ],
             ),
             child: Icon(
               Icons.account_balance,
               color: AppColors.onPrimary,
-              size: isCompact ? 28 : 32,
+              size: screenWidth * 0.07, // 7% del ancho
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: screenHeight * 0.02), // 2% de la altura
           Column(
             children: [
               Text(
@@ -198,6 +226,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 style: AppTypography.headlineMedium.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
+                  fontSize: screenWidth * 0.06, // 6% del ancho
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -205,6 +234,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 'Gestión financiera inteligente',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.onSurfaceVariant,
+                  fontSize: screenWidth * 0.035, // 3.5% del ancho
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -218,25 +248,27 @@ class _RegisterPageState extends State<RegisterPage> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.all(screenWidth * 0.05), // 5% del ancho
           decoration: BoxDecoration(
             gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            borderRadius: BorderRadius.circular(
+              screenWidth * 0.04,
+            ), // 4% del ancho
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                blurRadius: screenWidth * 0.02, // 2% del ancho
+                offset: Offset(0, screenHeight * 0.005), // 0.5% de la altura
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.account_balance,
             color: AppColors.onPrimary,
-            size: 32,
+            size: screenWidth * 0.08, // 8% del ancho
           ),
         ),
-        const SizedBox(width: AppSpacing.lg),
+        SizedBox(width: screenWidth * 0.05), // 5% del ancho
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -245,12 +277,14 @@ class _RegisterPageState extends State<RegisterPage> {
               style: AppTypography.headlineLarge.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
+                fontSize: screenWidth * 0.07, // 7% del ancho
               ),
             ),
             Text(
               'Gestión financiera inteligente',
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.onSurfaceVariant,
+                fontSize: screenWidth * 0.04, // 4% del ancho
               ),
             ),
           ],
@@ -260,29 +294,13 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildWelcomeSection({bool isCompact = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          'Crea tu cuenta',
-          style: AppTypography.headlineLarge.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.onSurface,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          width: 360,
-          child: Text(
-            'Te ayudará a administrar tus finanzas de manera eficiente y segura, con acceso a productos y servicios personalizados.',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ],
+    return Text(
+      'Crea tu cuenta',
+      style: AppTypography.headlineLarge.copyWith(
+        fontWeight: FontWeight.bold,
+        color: AppColors.onSurface,
+      ),
+      textAlign: TextAlign.center,
     );
   }
 
@@ -370,8 +388,8 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget _buildRegisterForm(bool isLoading) {
     return AppCard(
       padding: EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xl,
+        horizontal: AppSpacing.md, // Reducido de lg a md
+        vertical: AppSpacing.lg, // Reducido de xl a lg
       ),
       child: Form(
         key: _formKey,
@@ -380,7 +398,7 @@ class _RegisterPageState extends State<RegisterPage> {
           children: [
             // Selector de Microfinanciera
             _buildMicrofinancieraSelector(),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md), // Reducido de lg a md
             Row(
               children: [
                 Expanded(
@@ -404,7 +422,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm), // Reducido de md a sm
             TextFieldOutlined(
               controller: _dniController,
               label: 'Documento de Identidad',
@@ -412,7 +430,7 @@ class _RegisterPageState extends State<RegisterPage> {
               textInputAction: TextInputAction.next,
               validator: _validateDni,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm), // Reducido de md a sm
             TextFieldOutlined(
               controller: _phoneController,
               label: 'Teléfono',
@@ -420,7 +438,7 @@ class _RegisterPageState extends State<RegisterPage> {
               textInputAction: TextInputAction.next,
               validator: _validatePhone,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm), // Reducido de md a sm
             TextFieldOutlined(
               controller: _emailController,
               label: 'Correo electrónico',
@@ -429,16 +447,17 @@ class _RegisterPageState extends State<RegisterPage> {
               autofillHints: const [AutofillHints.email],
               validator: _validateEmail,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm), // Reducido de md a sm
             TextFieldOutlined(
               controller: _passwordController,
               label: 'Contraseña',
+
               obscureText: true,
               autofillHints: const [AutofillHints.newPassword],
               validator: _validatePassword,
               onFieldSubmitted: (_) => _registerWithEmail(),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md), // Reducido de lg a md
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -460,30 +479,14 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md), // Reducido de lg a md
             PrimaryButton(
               text: 'Crear cuenta',
               onPressed: isLoading ? null : _registerWithEmail,
               isLoading: isLoading,
             ),
-            const SizedBox(height: AppSpacing.md),
-            PrimaryButton(
-              text: 'Continuar con Google',
-              icon: Icons.g_mobiledata,
-              onPressed: isLoading ? null : _signUpWithGoogle,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: isLoading ? null : _signUpWithFacebook,
-              icon: const Icon(Icons.facebook_outlined),
-              label: const Text('Continuar con Facebook'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(AppSpacing.minButtonHeight),
-                side: const BorderSide(color: AppColors.primary),
-                foregroundColor: AppColors.primary,
-                textStyle: AppTypography.labelLarge,
-              ),
-            ),
+            // Botón de Google removido
+            // Botón de Facebook removido
           ],
         ),
       ),
@@ -534,9 +537,30 @@ class _RegisterPageState extends State<RegisterPage> {
     if (value == null || value.isEmpty) {
       return 'Ingresa una contraseña';
     }
-    if (value.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres';
+    if (value.length < 9) {
+      return 'La contraseña debe tener al menos 9 caracteres';
     }
+
+    // Verificar que tenga al menos una letra mayúscula
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+      return 'Debe contener al menos una letra mayúscula';
+    }
+
+    // Verificar que tenga al menos una letra minúscula
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
+      return 'Debe contener al menos una letra minúscula';
+    }
+
+    // Verificar que tenga al menos un número
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'Debe contener al menos un número';
+    }
+
+    // Verificar que tenga al menos un carácter especial
+    if (!RegExp(r'[!@#\$%\^&\*\(\),\.\?":{}|<>]').hasMatch(value)) {
+      return 'Debe contener al menos un carácter especial (!@#\$%^&*(),.?":{}|<>)';
+    }
+
     return null;
   }
 
@@ -592,27 +616,6 @@ class _RegisterPageState extends State<RegisterPage> {
         microfinancieraId: _selectedMicrofinanciera!.id,
         roles: resolveDefaultRolesForMicrofinanciera(_selectedMicrofinanciera),
       ),
-    );
-  }
-
-  void _signUpWithGoogle() {
-    if (_selectedMicrofinanciera == null) {
-      _showErrorSnackBar('Por favor selecciona una microfinanciera');
-      return;
-    }
-
-    context.read<AuthBloc>().add(
-      AuthGoogleSignInRequested(
-        microfinancieraId: _selectedMicrofinanciera!.id,
-        roles: resolveDefaultRolesForMicrofinanciera(_selectedMicrofinanciera),
-      ),
-    );
-  }
-
-  void _signUpWithFacebook() {
-    // Facebook login temporalmente deshabilitado
-    _showErrorSnackBar(
-      'El registro con Facebook estará disponible próximamente',
     );
   }
 

@@ -19,29 +19,32 @@ class PendingApprovalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.all(screenWidth * 0.05), // 5% del ancho
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Icono de reloj/pendiente
               Container(
-                width: 120,
-                height: 120,
+                width: screenWidth * 0.3, // 30% del ancho
+                height: screenWidth * 0.3, // 30% del ancho (mantener aspecto cuadrado)
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.access_time,
-                  size: 60,
+                  size: screenWidth * 0.15, // 15% del ancho
                   color: Colors.orange,
                 ),
               ),
               
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: screenHeight * 0.04), // 4% de la altura
               
               // Título
               Text(
@@ -49,29 +52,31 @@ class PendingApprovalPage extends StatelessWidget {
                 style: AppTypography.headlineMedium.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: screenWidth * 0.06, // 6% del ancho
                 ),
                 textAlign: TextAlign.center,
               ),
               
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: screenHeight * 0.02), // 2% de la altura
               
               // Mensaje
               Text(
                 message,
                 style: AppTypography.bodyLarge.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: screenWidth * 0.045, // 4.5% del ancho
                 ),
                 textAlign: TextAlign.center,
               ),
               
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: screenHeight * 0.03), // 3% de la altura
               
               // Información del usuario
               Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(screenWidth * 0.03), // 3% del ancho
                 ),
                 child: Column(
                   children: [
@@ -80,31 +85,35 @@ class PendingApprovalPage extends StatelessWidget {
                         Icon(
                           Icons.email,
                           color: Theme.of(context).colorScheme.primary,
-                          size: 20,
+                          size: screenWidth * 0.05, // 5% del ancho
                         ),
-                        const SizedBox(width: AppSpacing.sm),
+                        SizedBox(width: screenWidth * 0.03), // 3% del ancho
                         Expanded(
                           child: Text(
                             user.email ?? 'Sin email',
-                            style: AppTypography.bodyMedium,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontSize: screenWidth * 0.04, // 4% del ancho
+                            ),
                           ),
                         ),
                       ],
                     ),
                     if (user.displayName != null) ...[
-                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(height: screenHeight * 0.015), // 1.5% de la altura
                       Row(
                         children: [
                           Icon(
                             Icons.person,
                             color: Theme.of(context).colorScheme.primary,
-                            size: 20,
+                            size: screenWidth * 0.05, // 5% del ancho
                           ),
-                          const SizedBox(width: AppSpacing.sm),
+                          SizedBox(width: screenWidth * 0.03), // 3% del ancho
                           Expanded(
                             child: Text(
                               user.displayName!,
-                              style: AppTypography.bodyMedium,
+                              style: AppTypography.bodyMedium.copyWith(
+                                fontSize: screenWidth * 0.04, // 4% del ancho
+                              ),
                             ),
                           ),
                         ],
@@ -114,7 +123,7 @@ class PendingApprovalPage extends StatelessWidget {
                 ),
               ),
               
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: screenHeight * 0.04), // 4% de la altura
               
               // Botón de cerrar sesión
               SizedBox(
@@ -123,11 +132,14 @@ class PendingApprovalPage extends StatelessWidget {
                   onPressed: () {
                     context.read<AuthBloc>().add(const AuthLogoutRequested());
                   },
-                  child: const Text('Cerrar Sesión'),
+                  child: Text(
+                    'Cerrar Sesión',
+                    style: TextStyle(fontSize: screenWidth * 0.04), // 4% del ancho
+                  ),
                 ),
               ),
               
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: screenHeight * 0.02), // 2% de la altura
               
               // Texto informativo adicional
               Text(
@@ -135,6 +147,7 @@ class PendingApprovalPage extends StatelessWidget {
                 style: AppTypography.bodySmall.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontStyle: FontStyle.italic,
+                  fontSize: screenWidth * 0.035, // 3.5% del ancho
                 ),
                 textAlign: TextAlign.center,
               ),

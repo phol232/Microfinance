@@ -1,17 +1,18 @@
 import 'package:fpdart/fpdart.dart';
 import '../../core/error/failures.dart';
-import '../../entities/app_user.dart';
+import '../../entities/login_result.dart';
 import '../../repositories/auth_repository.dart';
 import '../usecase.dart';
 
 /// Caso de uso para autenticar un usuario con email y contraseña
-class LoginUserUseCase implements UseCase<AppUser, LoginParams> {
+/// ✅ OPTIMIZACIÓN: Ahora retorna LoginResult con perfil incluido
+class LoginUserUseCase implements UseCase<LoginResult, LoginParams> {
   final AuthRepository _repository;
 
   const LoginUserUseCase(this._repository);
 
   @override
-  Future<Either<Failure, AppUser>> call(LoginParams params) async {
+  Future<Either<Failure, LoginResult>> call(LoginParams params) async {
     // Validaciones de negocio
     final validationResult = _validateParams(params);
     if (validationResult != null) {
@@ -19,14 +20,14 @@ class LoginUserUseCase implements UseCase<AppUser, LoginParams> {
     }
 
     try {
-      final user = await _repository.signInWithEmailAndPassword(
+      final result = await _repository.signInWithEmailAndPassword(
         email: params.email,
         password: params.password,
         microfinancieraId: params.microfinancieraId,
       );
-      
-      if (user != null) {
-        return Right(user);
+
+      if (result != null && result.user != null) {
+        return Right(result);
       } else {
         return const Left(AuthFailure('Credenciales inválidas'));
       }
@@ -40,23 +41,25 @@ class LoginUserUseCase implements UseCase<AppUser, LoginParams> {
     if (params.email.isEmpty) {
       return const ValidationFailure('El email es requerido');
     }
-    
+
     if (!_isValidEmail(params.email)) {
       return const ValidationFailure('El formato del email es inválido');
     }
-    
+
     if (params.password.isEmpty) {
       return const ValidationFailure('La contraseña es requerida');
     }
-    
+
     if (params.password.length < 6) {
-      return const ValidationFailure('La contraseña debe tener al menos 6 caracteres');
+      return const ValidationFailure(
+        'La contraseña debe tener al menos 6 caracteres',
+      );
     }
-    
+
     if (params.microfinancieraId.isEmpty) {
       return const ValidationFailure('La microfinanciera es requerida');
     }
-    
+
     return null;
   }
 
@@ -68,24 +71,47 @@ class LoginUserUseCase implements UseCase<AppUser, LoginParams> {
   /// Mapea excepciones a failures específicos
   Failure _mapExceptionToFailure(dynamic exception) {
     final message = exception.toString().toLowerCase();
-    
+
     if (message.contains('network') || message.contains('connection')) {
       return const NetworkFailure('Error de conexión. Verifica tu internet.');
     }
-    
-    if (message.contains('user-not-found') || message.contains('wrong-password')) {
-      return const AuthFailure('Credenciales inválidas');
+
+    // Errores de credenciales
+    if (message.contains('invalid-credential') ||
+        message.contains('user-not-found') ||
+        message.contains('wrong-password')) {
+      return const AuthFailure('Correo o contraseña incorrectos');
     }
-    
+
     if (message.contains('too-many-requests')) {
       return const AuthFailure('Demasiados intentos. Intenta más tarde.');
     }
-    
+
     if (message.contains('user-disabled')) {
       return const AuthFailure('Esta cuenta ha sido deshabilitada');
     }
-    
-    return UnknownFailure('Error inesperado: ${exception.toString()}');
+
+    if (message.contains('invalid-email')) {
+      return const AuthFailure('El formato del correo es inválido');
+    }
+
+    if (message.contains('email-already-in-use')) {
+      return const AuthFailure('Este correo ya está registrado');
+    }
+
+    if (message.contains('weak-password')) {
+      return const AuthFailure('La contraseña es muy débil');
+    }
+
+    if (message.contains('membership-not-found')) {
+      return const AuthFailure(
+        'Usuario no autorizado para esta microfinanciera',
+      );
+    }
+
+    return const AuthFailure(
+      'Error al iniciar sesión. Verifica tus credenciales.',
+    );
   }
 }
 
@@ -111,8 +137,10 @@ class LoginParams {
           microfinancieraId == other.microfinancieraId;
 
   @override
-  int get hashCode => email.hashCode ^ password.hashCode ^ microfinancieraId.hashCode;
+  int get hashCode =>
+      email.hashCode ^ password.hashCode ^ microfinancieraId.hashCode;
 
   @override
-  String toString() => 'LoginParams(email: $email, microfinancieraId: $microfinancieraId, password: [HIDDEN])';
+  String toString() =>
+      'LoginParams(email: $email, microfinancieraId: $microfinancieraId, password: [HIDDEN])';
 }

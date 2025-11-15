@@ -9,6 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/config/firebase_config.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/microfinanciera.dart';
+import '../../domain/entities/login_result.dart';
 import 'backend_api_datasource.dart';
 
 class FirebaseAuthDataSource {
@@ -41,7 +42,7 @@ class FirebaseAuthDataSource {
     }
   }
 
-  Future<UserCredential?> signInWithEmailAndPassword({
+  Future<LoginResult?> signInWithEmailAndPassword({
     required String email,
     required String password,
     required String microfinancieraId,
@@ -91,17 +92,14 @@ class FirebaseAuthDataSource {
       final membershipData = membershipDoc.data() ?? <String, dynamic>{};
       final status = (membershipData['status'] as String?) ?? 'pending';
 
-      if (status != 'active') {
+      // Aceptar tanto 'active' como 'approved' como estados válidos
+      if (status != 'active' && status != 'approved') {
         await _auth.signOut();
         throw FirebaseAuthException(
           code: 'membership-inactive',
           message: 'Usuario desactivado. Contacte al administrador',
         );
       }
-
-      await membershipDoc.reference.update({
-        'lastLoginAt': Timestamp.fromDate(DateTime.now()),
-      });
 
       final membershipRoles = (membershipData['roles'] as List<dynamic>? ?? [])
           .map((value) => value.toString())
@@ -116,18 +114,90 @@ class FirebaseAuthDataSource {
           ? (membershipData['dni'] as String).trim()
           : null;
 
+      // ✅ OPTIMIZACIÓN: Mover operaciones no críticas a background
+      // Estas operaciones ya no bloquean el login
       unawaited(
-        ensureUserDocuments(
-          user,
-          microfinancieraId: microfinancieraId,
-          membershipId: membershipDoc.id,
-          roles: membershipRoles,
-          phone: membershipPhone,
-          dni: membershipDni,
-        ),
+        Future.microtask(() async {
+          try {
+            // Actualizar lastLoginAt en background
+            await membershipDoc!.reference.update({
+              'lastLoginAt': Timestamp.fromDate(DateTime.now()),
+            });
+
+            // Sincronizar documentos de usuario en background
+            await ensureUserDocuments(
+              user,
+              microfinancieraId: microfinancieraId,
+              membershipId: membershipDoc.id,
+              roles: membershipRoles,
+              phone: membershipPhone,
+              dni: membershipDni,
+            );
+          } catch (e) {
+            // Log error pero no fallar el login
+            if (kDebugMode) {
+              debugPrint('⚠️ Error en operaciones background post-login: $e');
+            }
+          }
+        }),
       );
 
-      return credential;
+      // ✅ OPTIMIZACIÓN: Construir UserProfile usando datos ya consultados
+      // Evitamos hacer otra consulta a Firestore en validateUserAccess
+      final displayName =
+          (membershipData['displayName'] as String?)?.trim() ??
+          user.displayName?.trim() ??
+          email.split('@').first;
+
+      final firstName = (membershipData['firstName'] as String?)?.trim() ?? '';
+      final lastName = (membershipData['lastName'] as String?)?.trim() ?? '';
+      final photoUrl =
+          (membershipData['photoUrl'] as String?)?.trim() ??
+          user.photoURL?.trim();
+      final primaryRoleId =
+          (membershipData['primaryRoleId'] as String?)?.trim() ??
+          (membershipRoles.isNotEmpty ? membershipRoles.first : null);
+
+      // Convertir Timestamps a DateTime
+      DateTime? createdAt;
+      if (membershipData['createdAt'] is Timestamp) {
+        createdAt = (membershipData['createdAt'] as Timestamp).toDate();
+      }
+      DateTime? updatedAt;
+      if (membershipData['updatedAt'] is Timestamp) {
+        updatedAt = (membershipData['updatedAt'] as Timestamp).toDate();
+      }
+      DateTime? lastLoginAt;
+      if (membershipData['lastLoginAt'] is Timestamp) {
+        lastLoginAt = (membershipData['lastLoginAt'] as Timestamp).toDate();
+      }
+
+      final profile = UserProfile(
+        uid: user.uid,
+        email: email,
+        fullName: displayName,
+        firstName: firstName,
+        lastName: lastName,
+        photoUrl: photoUrl,
+        phone: membershipPhone,
+        dni: membershipDni,
+        microfinancieraId: microfinancieraId,
+        membershipId: membershipDoc.id,
+        customerId: null, // Se cargará después si es necesario
+        primaryRoleId: primaryRoleId,
+        roles: membershipRoles,
+        status: status,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        lastLoginAt: lastLoginAt,
+      );
+
+      return LoginResult(
+        credential: credential,
+        profile: profile,
+        membershipId: membershipDoc.id,
+        microfinancieraId: microfinancieraId,
+      );
     } on FirebaseAuthException catch (error, stackTrace) {
       _logError('signInWithEmailAndPassword', error, stackTrace);
       rethrow;
@@ -316,18 +386,19 @@ class FirebaseAuthDataSource {
         dni: trimmedDni.isNotEmpty ? trimmedDni : null,
       );
 
+      // TODO: Implementar sistema de notificaciones en el futuro
       // Enviar notificación de nuevo usuario
-      try {
-        await _backendApi.notifyUserRegistration(
-          uid: user.uid,
-          email: email,
-          displayName: displayName.isNotEmpty ? displayName : null,
-          provider: 'email',
-        );
-      } catch (e) {
-        // Log error but don't fail the registration
-        print('Error enviando notificación de registro: $e');
-      }
+      // try {
+      //   await _backendApi.notifyUserRegistration(
+      //     uid: user.uid,
+      //     email: email,
+      //     displayName: displayName.isNotEmpty ? displayName : null,
+      //     provider: 'email',
+      //   );
+      // } catch (e) {
+      //   // Log error but don't fail the registration
+      //   print('Error enviando notificación de registro: $e');
+      // }
 
       return credential;
     } on FirebaseAuthException catch (error, stackTrace) {
@@ -390,7 +461,7 @@ class FirebaseAuthDataSource {
         rethrow;
       }
 
-      final googleAuth = googleUser.authentication;
+      final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null) {
         throw FirebaseAuthException(
@@ -539,18 +610,19 @@ class FirebaseAuthDataSource {
         dni: null,
       );
 
+      // TODO: Implementar sistema de notificaciones en el futuro
       // Enviar notificación de nuevo usuario (Google)
-      try {
-        await _backendApi.notifyUserRegistration(
-          uid: user.uid,
-          email: trimmedEmail ?? user.email ?? '',
-          displayName: trimmedDisplayName ?? user.displayName,
-          provider: 'google',
-        );
-      } catch (e) {
-        // Log error but don't fail the registration
-        print('Error enviando notificación de registro Google: $e');
-      }
+      // try {
+      //   await _backendApi.notifyUserRegistration(
+      //     uid: user.uid,
+      //     email: trimmedEmail ?? user.email ?? '',
+      //     displayName: trimmedDisplayName ?? user.displayName,
+      //     provider: 'google',
+      //   );
+      // } catch (e) {
+      //   // Log error but don't fail the registration
+      //   print('Error enviando notificación de registro Google: $e');
+      // }
 
       return newRoles;
     }
@@ -1546,6 +1618,7 @@ class FirebaseAuthDataSource {
 
   Future<List<Microfinanciera>> getActiveMicrofinancieras() async {
     try {
+      // Intentar usar la consulta optimizada con índice
       final query = await _firestore
           .collection('microfinancieras')
           .where('isActive', isEqualTo: true)
@@ -1556,6 +1629,30 @@ class FirebaseAuthDataSource {
           .map((doc) => Microfinanciera.fromFirestore(doc))
           .toList();
     } catch (error, stackTrace) {
+      // Si el índice aún se está construyendo, usar filtrado del lado del cliente
+      if (error.toString().contains('index is currently building')) {
+        try {
+          final query = await _firestore.collection('microfinancieras').get();
+
+          final microfinancieras = query.docs
+              .map((doc) => Microfinanciera.fromFirestore(doc))
+              .where((mf) => mf.isActive)
+              .toList();
+
+          // Ordenar por nombre en el cliente
+          microfinancieras.sort((a, b) => a.name.compareTo(b.name));
+
+          return microfinancieras;
+        } catch (fallbackError, fallbackStackTrace) {
+          _logError(
+            'getActiveMicrofinancieras (fallback)',
+            fallbackError,
+            fallbackStackTrace,
+          );
+          return [];
+        }
+      }
+
       _logError('getActiveMicrofinancieras', error, stackTrace);
       return [];
     }
@@ -1564,6 +1661,7 @@ class FirebaseAuthDataSource {
   Future<void> _ensureGoogleInitialized() {
     return _googleInitialization ??= _googleSignIn.initialize(
       clientId: _googleClientId(),
+      serverClientId: _getWebClientId(),
     );
   }
 
@@ -1579,6 +1677,11 @@ class FirebaseAuthDataSource {
       default:
         return null;
     }
+  }
+
+  String? _getWebClientId() {
+    // El Web Client ID se usa como serverClientId para obtener el ID token
+    return '862824702457-sldad0un2uhsg6tbfhlbostj6bui450j.apps.googleusercontent.com';
   }
 
   _NameParts _resolveNames(

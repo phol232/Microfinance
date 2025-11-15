@@ -35,36 +35,39 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            const Text(
+            Text(
               'Reportes y Análisis',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: screenWidth * 0.06, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: screenHeight * 0.01),
+            Text(
               'Analiza el rendimiento de tu cartera de préstamos',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: screenWidth * 0.04, color: Colors.grey),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: screenHeight * 0.03),
 
             // Filtros de fecha
             _buildDateFilters(),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
 
             // Botones de acción
             _buildActionButtons(),
-            const SizedBox(height: 24),
+            SizedBox(height: screenHeight * 0.03),
 
             // Métricas
             if (_metrics != null) ...[
               _buildMetrics(),
-              const SizedBox(height: 24),
+              SizedBox(height: screenHeight * 0.03),
             ],
 
             // Tabla de datos
@@ -72,10 +75,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
             // Loading
             if (_isLoading)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
+                  padding: EdgeInsets.all(screenWidth * 0.08),
+                  child: const CircularProgressIndicator(),
                 ),
               ),
           ],
@@ -85,17 +88,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildDateFilters() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Período del Reporte',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: screenWidth * 0.04, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             Row(
               children: [
                 Expanded(
@@ -105,7 +111,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     onTap: () => _selectDate(context, true),
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: screenWidth * 0.04),
                 Expanded(
                   child: _buildDateButton(
                     label: 'Hasta',
@@ -126,25 +132,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
     required DateTime date,
     required VoidCallback onTap,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(screenWidth * 0.03),
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(screenWidth * 0.02),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: screenWidth * 0.03, color: Colors.grey.shade600),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: screenHeight * 0.005),
             Text(
               DateFormat('dd/MM/yyyy').format(date),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: screenWidth * 0.04, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -153,6 +162,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildActionButtons() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Column(
       children: [
         Row(
@@ -160,36 +172,36 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _isLoading ? null : _generateReport,
-                icon: const Icon(Icons.assessment),
-                label: const Text('Generar Reporte'),
+                icon: Icon(Icons.assessment, size: screenWidth * 0.05),
+                label: Text('Generar Reporte', style: TextStyle(fontSize: screenWidth * 0.035)),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(screenWidth * 0.04),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: screenWidth * 0.04),
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: _isLoading ? null : _loadMetrics,
-                icon: const Icon(Icons.analytics),
-                label: const Text('Ver Métricas'),
+                icon: Icon(Icons.analytics, size: screenWidth * 0.05),
+                label: Text('Ver Métricas', style: TextStyle(fontSize: screenWidth * 0.035)),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(screenWidth * 0.04),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: screenHeight * 0.01),
         // Botón de debug
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: _isLoading ? null : _debugCount,
-            icon: const Icon(Icons.bug_report),
-            label: const Text('Debug: Ver Total de Solicitudes'),
+            icon: Icon(Icons.bug_report, size: screenWidth * 0.05),
+            label: Text('Debug: Ver Total de Solicitudes', style: TextStyle(fontSize: screenWidth * 0.035)),
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(screenWidth * 0.03),
               foregroundColor: Colors.orange,
             ),
           ),
@@ -199,17 +211,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildMetrics() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Métricas de Conversión',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: screenWidth * 0.045, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildMetricRow(
               'Total Solicitudes',
               _metrics!['totalApplications'].toString(),
@@ -234,7 +249,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Icons.attach_money,
               Colors.purple,
             ),
-            const Divider(height: 24),
+            Divider(height: screenHeight * 0.03),
             _buildMetricRow(
               'Tasa de Conversión',
               '${(_metrics!['conversionRate'] * 100).toStringAsFixed(1)}%',
@@ -259,24 +274,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
     IconData icon,
     Color color,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(vertical: screenHeight * 0.01),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(screenWidth * 0.02),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(screenWidth * 0.02),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: screenWidth * 0.05),
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+          SizedBox(width: screenWidth * 0.03),
+          Expanded(child: Text(label, style: TextStyle(fontSize: screenWidth * 0.035))),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: screenWidth * 0.04,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -287,48 +305,56 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildReportTable() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Solicitudes',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: screenWidth * 0.045, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   '${_reportData!.length} registros',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: screenWidth * 0.035),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Cliente')),
-                  DataColumn(label: Text('DNI')),
-                  DataColumn(label: Text('Monto')),
-                  DataColumn(label: Text('Estado')),
-                  DataColumn(label: Text('Banda')),
+                columnSpacing: screenWidth * 0.05,
+                horizontalMargin: screenWidth * 0.02,
+                headingRowHeight: screenHeight * 0.06,
+                dataRowHeight: screenHeight * 0.05,
+                columns: [
+                  DataColumn(label: Text('Cliente', style: TextStyle(fontSize: screenWidth * 0.035))),
+                  DataColumn(label: Text('DNI', style: TextStyle(fontSize: screenWidth * 0.035))),
+                  DataColumn(label: Text('Monto', style: TextStyle(fontSize: screenWidth * 0.035))),
+                  DataColumn(label: Text('Estado', style: TextStyle(fontSize: screenWidth * 0.035))),
+                  DataColumn(label: Text('Banda', style: TextStyle(fontSize: screenWidth * 0.035))),
                 ],
                 rows: _reportData!.map((app) {
                   return DataRow(
                     cells: [
-                      DataCell(Text(app['customerName'] ?? 'N/A')),
-                      DataCell(Text(app['dni'] ?? 'N/A')),
+                      DataCell(Text(app['customerName'] ?? 'N/A', style: TextStyle(fontSize: screenWidth * 0.032))),
+                      DataCell(Text(app['dni'] ?? 'N/A', style: TextStyle(fontSize: screenWidth * 0.032))),
                       DataCell(
                         Text(
                           'S/ ${app['loanAmount']?.toStringAsFixed(0) ?? '0'}',
+                          style: TextStyle(fontSize: screenWidth * 0.032),
                         ),
                       ),
                       DataCell(_buildStatusChip(app['status'])),
-                      DataCell(Text(app['scoreBand'] ?? 'N/A')),
+                      DataCell(Text(app['scoreBand'] ?? 'N/A', style: TextStyle(fontSize: screenWidth * 0.032))),
                     ],
                   );
                 }).toList(),
@@ -341,6 +367,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildStatusChip(String status) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     Color color;
     switch (status) {
       case 'approved':
@@ -357,16 +385,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02, vertical: screenWidth * 0.01),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(screenWidth * 0.03),
       ),
       child: Text(
         status,
         style: TextStyle(
           color: color,
-          fontSize: 12,
+          fontSize: screenWidth * 0.03,
           fontWeight: FontWeight.bold,
         ),
       ),

@@ -1,13 +1,14 @@
 import '../entities/app_user.dart';
 import '../entities/user_profile.dart';
 import '../entities/microfinanciera.dart';
+import '../entities/login_result.dart';
 
 abstract class AuthRepository {
   Stream<AppUser?> authStateChanges();
 
   AppUser? get currentUser;
 
-  Future<AppUser?> signInWithEmailAndPassword({
+  Future<LoginResult?> signInWithEmailAndPassword({
     required String email,
     required String password,
     required String microfinancieraId,

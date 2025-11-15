@@ -18,6 +18,8 @@ class LoanApplicationDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     final isDisbursed = application.status == 'disbursed';
 
     return Scaffold(
@@ -26,55 +28,58 @@ class LoanApplicationDetailPage extends StatelessWidget {
         actions: [
           if (!isDisbursed)
             IconButton(
-              icon: const Icon(Icons.edit),
+              icon: Icon(Icons.edit, size: screenWidth * 0.06),
               onPressed: () => _showChangeStatusDialog(context),
               tooltip: 'Cambiar Estado',
             ),
-          IconButton(icon: const Icon(Icons.share), onPressed: () {}),
+          IconButton(
+            icon: Icon(Icons.share, size: screenWidth * 0.06),
+            onPressed: () {},
+          ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildStatusCard(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             if (application.product != null) ...[
               _buildProductInfo(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             if (application.personalInfo != null) ...[
               _buildPersonalInfo(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             if (application.contactInfo != null) ...[
               _buildContactInfo(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             if (application.employmentInfo != null) ...[
               _buildEmploymentInfo(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             if (application.financialInfo != null) ...[
               _buildFinancialInfo(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             if (application.additionalInfo != null) ...[
               _buildAdditionalInfo(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             if (application.consents != null) ...[
               _buildConsents(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             if (application.location != null) ...[
               _buildLocationInfo(context),
-              const SizedBox(height: 16),
+              SizedBox(height: screenHeight * 0.02),
             ],
             // Botones de acción
             _buildActionButtons(context),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             _buildTimestamps(context),
           ],
         ),
@@ -83,49 +88,25 @@ class LoanApplicationDetailPage extends StatelessWidget {
   }
 
   Widget _buildActionButtons(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Acciones',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: screenWidth * 0.045,
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
 
-            // Botón Calcular Scoring (solo si no tiene scoring Y NO está desembolsado)
-            if (application.status == 'in_review' &&
-                application.scoring == null &&
-                application.status != 'disbursed')
-              ElevatedButton.icon(
-                onPressed: () => _calculateScoring(context),
-                icon: const Icon(Icons.calculate),
-                label: const Text('Calcular Scoring'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                ),
-              ),
-
-            // Botón Ver Scoring (si ya tiene scoring)
-            if (application.scoring != null) ...[
-              ElevatedButton.icon(
-                onPressed: () => _viewScoring(context),
-                icon: const Icon(Icons.assessment),
-                label: const Text('Ver Scoring'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
+            // Nota: Botones de Scoring removidos - solo disponibles para administradores en la web
 
             // Botón Aprobar Definitivamente (si está pre-aprobado)
             if (application.decision != null &&
@@ -133,15 +114,18 @@ class LoanApplicationDetailPage extends StatelessWidget {
                 application.decision!.isAutomatic &&
                 application.decision!.comments.contains('Pre-aprobado'))
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: screenHeight * 0.01),
                 child: ElevatedButton.icon(
                   onPressed: () => _approveFinally(context),
-                  icon: const Icon(Icons.check_circle),
-                  label: const Text('Aprobar Definitivamente'),
+                  icon: Icon(Icons.check_circle, size: screenWidth * 0.05),
+                  label: Text(
+                    'Aprobar Definitivamente',
+                    style: TextStyle(fontSize: screenWidth * 0.035),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(screenWidth * 0.04),
                   ),
                 ),
               ),
@@ -153,15 +137,18 @@ class LoanApplicationDetailPage extends StatelessWidget {
                         application.scoring != null)) &&
                 application.status != 'disbursed')
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: screenHeight * 0.01),
                 child: ElevatedButton.icon(
                   onPressed: () => _goToDecisionPage(context),
-                  icon: const Icon(Icons.gavel),
-                  label: const Text('Tomar Decisión'),
+                  icon: Icon(Icons.gavel, size: screenWidth * 0.05),
+                  label: Text(
+                    'Tomar Decisión',
+                    style: TextStyle(fontSize: screenWidth * 0.035),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(screenWidth * 0.04),
                   ),
                 ),
               ),
@@ -169,15 +156,18 @@ class LoanApplicationDetailPage extends StatelessWidget {
             // Botón Desembolsar (solo si está aprobado Y NO desembolsado)
             if (application.status == 'approved')
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: screenHeight * 0.01),
                 child: ElevatedButton.icon(
                   onPressed: () => _disburseLoan(context),
-                  icon: const Icon(Icons.attach_money),
-                  label: const Text('Desembolsar Crédito'),
+                  icon: Icon(Icons.attach_money, size: screenWidth * 0.05),
+                  label: Text(
+                    'Desembolsar Crédito',
+                    style: TextStyle(fontSize: screenWidth * 0.035),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(screenWidth * 0.04),
                   ),
                 ),
               ),
@@ -185,18 +175,22 @@ class LoanApplicationDetailPage extends StatelessWidget {
             // Mensaje si ya está desembolsado
             if (application.status == 'disbursed')
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: screenHeight * 0.01),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(screenWidth * 0.04),
                   decoration: BoxDecoration(
                     color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(screenWidth * 0.02),
                     border: Border.all(color: Colors.green),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green[700]),
-                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green[700],
+                        size: screenWidth * 0.05,
+                      ),
+                      SizedBox(width: screenWidth * 0.03),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1368,13 +1362,15 @@ class LoanApplicationDetailPage extends StatelessWidget {
       final authDataSource = FirebaseAuthDataSource();
       final authRepository = AuthRepositoryImpl(dataSource: authDataSource);
       final getCurrentUserUseCase = GetCurrentUserUseCase(authRepository);
-      
+
       final userResult = await getCurrentUserUseCase();
-      
+
       String userId = '';
       userResult.fold(
         (failure) {
-          throw Exception('No se pudo obtener el usuario actual: ${failure.message}');
+          throw Exception(
+            'No se pudo obtener el usuario actual: ${failure.message}',
+          );
         },
         (user) {
           if (user == null) {
@@ -1388,7 +1384,7 @@ class LoanApplicationDetailPage extends StatelessWidget {
       final dataSource = LoanApplicationDataSource();
       final repository = LoanApplicationRepositoryImpl(dataSource: dataSource);
       final updateStatusUseCase = UpdateApplicationStatusUseCase(repository);
-      
+
       final result = await updateStatusUseCase(
         microfinancieraId: application.microfinancieraId,
         applicationId: application.id,
@@ -1410,8 +1406,11 @@ class LoanApplicationDetailPage extends StatelessWidget {
               duration: const Duration(seconds: 3),
             ),
           );
-          
-          AppLogger.error('Error cambiando estado de aplicación', error: failure.message);
+
+          AppLogger.error(
+            'Error cambiando estado de aplicación',
+            error: failure.message,
+          );
         },
         (_) {
           // Mostrar mensaje de éxito
@@ -1439,7 +1438,7 @@ class LoanApplicationDetailPage extends StatelessWidget {
           duration: const Duration(seconds: 3),
         ),
       );
-      
+
       AppLogger.error('Error inesperado cambiando estado', error: e);
     }
   }
@@ -1453,6 +1452,8 @@ class LoanApplicationDetailPage extends StatelessWidget {
       case 'rejected':
         return Colors.red;
       case 'in_review':
+        return Colors.blue;
+      case 'disbursed':
         return Colors.blue;
       default:
         return Colors.grey;
@@ -1469,6 +1470,8 @@ class LoanApplicationDetailPage extends StatelessWidget {
         return 'Rechazada';
       case 'in_review':
         return 'En Revisión';
+      case 'disbursed':
+        return 'Desembolsado';
       default:
         return status;
     }
@@ -1484,6 +1487,8 @@ class LoanApplicationDetailPage extends StatelessWidget {
         return Icons.cancel;
       case 'in_review':
         return Icons.rate_review;
+      case 'disbursed':
+        return Icons.check_circle;
       default:
         return Icons.help;
     }

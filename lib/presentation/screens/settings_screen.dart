@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
@@ -10,6 +11,7 @@ import '../bloc/profile/profile_state.dart';
 import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
 import 'profile_screen.dart';
+import 'location_map_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,28 +26,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Configuración'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            const Text(
-              'Configuración',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
+            // Subtitle
+            Text(
               'Personaliza tu experiencia en la aplicación',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                fontSize: screenWidth * 0.04, // 4% del ancho
+                color: Colors.grey,
+              ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: screenHeight * 0.03), // 3% de la altura
 
             // Perfil de Usuario
             _buildProfileSection(),
 
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02), // 2% de la altura
 
             // Apariencia
             _buildSectionCard(
@@ -80,7 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02), // 2% de la altura
 
             // Notificaciones
             _buildSectionCard(
@@ -109,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02), // 2% de la altura
 
             // Seguridad
             _buildSectionCard(
@@ -148,7 +156,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02), // 2% de la altura
 
             // Acerca de
             _buildSectionCard(
@@ -183,7 +191,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: screenHeight * 0.03), // 3% de la altura
+
+            // Botón de ver ubicación
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _navigateToLocationMap(),
+                icon: const Icon(Icons.location_on, color: AppColors.primary),
+                label: Text(
+                  'Ver Ubicación',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: screenWidth * 0.04, // 4% del ancho
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ),
+
+            SizedBox(height: screenHeight * 0.02), // 2% de la altura
 
             // Botón de cerrar sesión
             SizedBox(
@@ -191,12 +221,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: OutlinedButton.icon(
                 onPressed: () => _showLogoutDialog(),
                 icon: const Icon(Icons.logout, color: Colors.red),
-                label: const Text(
+                label: Text(
                   'Cerrar Sesión',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: screenWidth * 0.04, // 4% del ancho
+                  ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
                   side: const BorderSide(color: Colors.red),
                 ),
               ),
@@ -294,26 +327,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required IconData icon,
     required List<Widget> children,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, color: AppColors.primary, size: 24),
-                const SizedBox(width: 12),
+                Icon(
+                  icon, 
+                  color: AppColors.primary, 
+                  size: screenWidth * 0.06, // 6% del ancho
+                ),
+                SizedBox(width: screenWidth * 0.03), // 3% del ancho
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: screenWidth * 0.045, // 4.5% del ancho
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02), // 2% de la altura
             ...children,
           ],
         ),
@@ -328,18 +368,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(screenWidth * 0.02), // 2% del ancho
         decoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(screenWidth * 0.02), // 2% del ancho
         ),
-        child: Icon(icon, color: AppColors.primary, size: 24),
+        child: Icon(
+          icon, 
+          color: AppColors.primary, 
+          size: screenWidth * 0.06, // 6% del ancho
+        ),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 13)),
+      title: Text(
+        title, 
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: screenWidth * 0.04, // 4% del ancho
+        ),
+      ),
+      subtitle: Text(
+        subtitle, 
+        style: TextStyle(fontSize: screenWidth * 0.032), // 3.2% del ancho
+      ),
       trailing: Switch(value: value, onChanged: onChanged),
     );
   }
@@ -351,23 +406,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(screenWidth * 0.02), // 2% del ancho
         decoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(screenWidth * 0.02), // 2% del ancho
         ),
-        child: Icon(icon, color: AppColors.primary, size: 24),
+        child: Icon(
+          icon, 
+          color: AppColors.primary, 
+          size: screenWidth * 0.06, // 6% del ancho
+        ),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      title: Text(
+        title, 
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: screenWidth * 0.04, // 4% del ancho
+        ),
+      ),
       subtitle: subtitle != null
-          ? Text(subtitle, style: const TextStyle(fontSize: 13))
+          ? Text(
+              subtitle, 
+              style: TextStyle(fontSize: screenWidth * 0.032), // 3.2% del ancho
+            )
           : null,
       trailing: trailing,
       onTap: onTap,
     );
+  }
+
+  void _navigateToLocationMap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LocationMapScreen(),
+      ),
+    );
+  }
+
+  Future<void> _openLocationInMaps() async {
+    const String address = "Jr. Tacna 340, Huancayo 12004";
+    final String googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}";
+    
+    try {
+      final Uri uri = Uri.parse(googleMapsUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir Google Maps'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al abrir la ubicación'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showLogoutDialog() {

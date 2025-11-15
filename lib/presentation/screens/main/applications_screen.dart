@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../bloc/intake_request/intake_request_bloc.dart';
 import '../../bloc/intake_request/intake_request_event.dart';
 import '../../bloc/intake_request/intake_request_state.dart';
 import '../details/loan_application_detail_page.dart';
 import '../../utils/product_colors.dart';
+import '../../bloc/auth/auth_bloc.dart';
+import '../../bloc/auth/auth_state.dart';
+import '../../bloc/profile/profile_bloc.dart';
+import '../../bloc/profile/profile_state.dart';
+import '../loan_application_screen.dart';
+import '../../widgets/simple_account_creation_modal.dart';
+import '../../bloc/account/account_bloc.dart';
+import '../../bloc/account/account_state.dart';
+import '../../bloc/account/account_event.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
@@ -16,16 +27,45 @@ class ApplicationsScreen extends StatefulWidget {
 }
 
 class _ApplicationsScreenState extends State<ApplicationsScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String _microfinancieraIdFallback = 'mf_demo_001';
+
+  String _resolveMicrofinancieraId(BuildContext context) {
+    final profile = context.read<ProfileBloc>().state.profile;
+    return profile?.microfinancieraId ?? _microfinancieraIdFallback;
+  }
+
   @override
   void initState() {
     super.initState();
-    // Cargar todas las solicitudes al iniciar
     context.read<IntakeRequestBloc>().add(const IntakeRequestLoadRequested());
+    _loadUserAccounts();
+  }
+
+  void _loadUserAccounts() {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      context.read<AccountBloc>().add(AccountLoadUserAccounts(uid));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    final authState = context.watch<AuthBloc>().state;
+    final String? uid = authState is AuthAuthenticated
+        ? authState.user.uid
+        : null;
+
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tus Solicitudes'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           context.read<IntakeRequestBloc>().add(
@@ -33,73 +73,104 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           );
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              const Text(
-                'Solicitudes de Préstamo',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              // Subtitle
+              Text(
+                'Envía y revisa el estado de tus solicitudes de préstamo',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.04, // 4% del ancho
+                  color: Colors.grey,
+                ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Administra las solicitudes pendientes de aprobación',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
+              SizedBox(height: screenHeight * 0.03), // 3% de la altura
 
               // Estadísticas rápidas
-              _buildStatsCards(),
-              const SizedBox(height: 24),
+              _buildStatsCards(uid),
+              SizedBox(height: screenHeight * 0.03), // 3% de la altura
 
               // Lista de solicitudes
-              _buildApplicationsList(),
+              _buildApplicationsList(uid),
             ],
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Funcionalidad próximamente')),
+      floatingActionButton: BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
+        builder: (context, state) {
+          final authState = context.watch<AuthBloc>().state;
+          final String? uid = authState is AuthAuthenticated
+              ? authState.user.uid
+              : null;
+
+          final userRequests = uid == null
+              ? state.requests
+              : state.requests.where((r) => r.userId == uid).toList();
+
+          // Verificar si hay solicitudes pendientes
+          final hasPendingApplications = userRequests.any((request) =>
+              request.status == 'pending' || request.status == 'in_review');
+
+          return FloatingActionButton(
+            onPressed: hasPendingApplications
+                ? () => _showPendingApplicationMessage(context)
+                : () => _showCreateRequestSheet(context),
+            backgroundColor: hasPendingApplications
+                ? Colors.grey
+                : Theme.of(context).colorScheme.primary,
+            child: Icon(
+              hasPendingApplications ? Icons.block : Icons.add,
+              color: hasPendingApplications
+                  ? Colors.white70
+                  : Theme.of(context).colorScheme.onPrimary,
+            ),
+            tooltip: hasPendingApplications
+                ? 'Tienes una solicitud pendiente'
+                : 'Nueva solicitud',
           );
         },
-        child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildStatsCards() {
+  Widget _buildStatsCards(String? uid) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
       builder: (context, state) {
-        final counts = state.statusCounts;
-        final pending = counts['pending'] ?? 0;
-        final inReview = counts['in_review'] ?? 0;
-        final rejected = counts['rejected'] ?? 0;
-        final totalPending = pending + inReview;
+        final filtered = uid == null
+            ? state.requests
+            : state.requests.where((r) => r.userId == uid).toList();
+
+        int pending = filtered
+            .where((r) => r.status == 'pending' || r.status == 'in_review')
+            .length;
+        int approved = filtered
+            .where((r) => r.status == 'approved' || r.status == 'disbursed')
+            .length;
+        int rejected = filtered.where((r) => r.status == 'rejected').length;
 
         return Row(
           children: [
             Expanded(
               child: _buildStatCard(
                 title: 'Pendientes',
-                value: '$totalPending',
+                value: '$pending',
                 icon: Icons.schedule,
                 color: Colors.orange,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: screenWidth * 0.03), // 3% del ancho
             Expanded(
               child: _buildStatCard(
                 title: 'Aprobadas',
-                value:
-                    '${(counts['approved'] ?? 0) + (counts['disbursed'] ?? 0)}',
+                value: '$approved',
                 icon: Icons.check_circle,
                 color: Colors.green,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: screenWidth * 0.03), // 3% del ancho
             Expanded(
               child: _buildStatCard(
                 title: 'Rechazadas',
@@ -120,25 +191,35 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
         child: Column(
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
+            Icon(
+              icon, 
+              color: color, 
+              size: screenWidth * 0.08, // 8% del ancho
+            ),
+            SizedBox(height: screenHeight * 0.01), // 1% de la altura
             Text(
               value,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: screenWidth * 0.06, // 6% del ancho
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: screenHeight * 0.005), // 0.5% de la altura
             Text(
               title,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(
+                fontSize: screenWidth * 0.03, // 3% del ancho
+                color: Colors.grey,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -147,7 +228,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     );
   }
 
-  Widget _buildApplicationsList() {
+  Widget _buildApplicationsList(String? uid) {
     return BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
       builder: (context, state) {
         if (state.status == IntakeRequestStatus.loading) {
@@ -192,7 +273,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           );
         }
 
-        final requests = state.requests;
+        final requests = uid == null
+            ? state.requests
+            : state.requests.where((r) => r.userId == uid).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +299,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'No hay solicitudes',
+                        'Aún no tienes solicitudes',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -224,7 +307,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Las solicitudes de los clientes aparecerán aquí',
+                        'Crea una solicitud pulsando el botón +',
                         style: TextStyle(fontSize: 14, color: Colors.grey),
                         textAlign: TextAlign.center,
                       ),
@@ -249,29 +332,56 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                   amount: 'S/ ${loanAmount.toStringAsFixed(2)}',
                   status: statusText,
                   statusColor: statusColor,
-                  date: dateFormat.format(request.createdAt),
-                  productCode: request.product?.code,
-                  productName: request.product?.name,
-                  onTap: () async {
-                    await Navigator.of(context).push(
+                  date: request.createdAt != null
+                      ? dateFormat.format(request.createdAt!)
+                      : 'Sin fecha',
+                  onTap: () {
+                    Navigator.push(
+                      context,
                       MaterialPageRoute(
-                        builder: (context) =>
+                        builder: (_) =>
                             LoanApplicationDetailPage(application: request),
                       ),
                     );
-                    // Refrescar la lista cuando vuelve
-                    if (context.mounted) {
-                      context.read<IntakeRequestBloc>().add(
-                        const IntakeRequestLoadRequested(),
-                      );
-                    }
                   },
                 );
-              }),
+              }).toList(),
           ],
         );
       },
     );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'pending':
+      case 'in_review':
+        return Colors.orange;
+      case 'approved':
+      case 'disbursed':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String? status) {
+    switch (status) {
+      case 'pending':
+        return 'Pendiente';
+      case 'in_review':
+        return 'En revisión';
+      case 'approved':
+        return 'Aprobada';
+      case 'disbursed':
+        return 'Desembolsada';
+      case 'rejected':
+        return 'Rechazada';
+      default:
+        return 'Recibida';
+    }
   }
 
   Widget _buildApplicationCard({
@@ -280,122 +390,172 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     required String status,
     required Color statusColor,
     required String date,
-    String? productCode,
-    String? productName,
     required VoidCallback onTap,
   }) {
-    final productColor = ProductColors.getColorByCode(productCode);
-    final productIcon = ProductColors.getIconByCode(productCode);
-
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: statusColor.withValues(alpha: 0.2),
-          child: Text(
-            clientName.isNotEmpty ? clientName[0] : '?',
-            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
-          ),
+          backgroundColor: statusColor.withOpacity(0.2),
+          child: Icon(Icons.description, color: statusColor),
         ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                clientName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            if (productCode != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: productColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(productIcon, size: 12, color: Colors.white),
-                    const SizedBox(width: 4),
-                    Text(
-                      productCode,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Solicitud: $amount • $date'),
-            if (productName != null)
-              Text(
-                productName,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: productColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-          ],
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            status,
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+        title: Text(clientName),
+        subtitle: Text('$amount • $date'),
+        trailing: Text(
+          status,
+          style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
         ),
         onTap: onTap,
       ),
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'pending':
-        return Colors.orange;
-      case 'approved':
-        return Colors.green;
-      case 'disbursed':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'in_review':
-        return Colors.blue;
-      default:
-        return Colors.grey;
+  void _showPendingApplicationMessage(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'No puedes crear una nueva solicitud mientras tengas una pendiente. '
+          'Espera a que tu solicitud actual sea aprobada o rechazada.',
+        ),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showCreateRequestSheet(BuildContext context) {
+    final authState = context.read<AuthBloc>().state;
+    
+    if (authState is! AuthAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes estar autenticado para continuar'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final profileState = context.read<ProfileBloc>().state;
+    
+    if (profileState.status != ProfileStatus.loaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cargando perfil de usuario...'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final microfinancieraId = profileState.profile?.microfinancieraId;
+    
+    if (microfinancieraId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo obtener la información de la microfinanciera'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Verificar si el usuario tiene cuentas
+    final accountState = context.read<AccountBloc>().state;
+    
+    if (accountState is AccountLoaded && accountState.accounts.isNotEmpty) {
+      // Usuario tiene cuentas, mostrar modal de solicitud de crédito
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LoanApplicationScreen(
+            userId: authState.user.uid,
+            microfinancieraId: microfinancieraId,
+          ),
+        ),
+      );
+    } else {
+      // Usuario no tiene cuentas, mostrar modal de creación de cuenta
+      _showAccountCreationDialog(context, authState.user.uid, microfinancieraId);
     }
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Pendiente';
-      case 'approved':
-        return 'Aprobada';
-      case 'disbursed':
-        return 'Aprobado';
-      case 'rejected':
-        return 'Rechazada';
-      case 'in_review':
-        return 'En Revisión';
-      default:
-        return status;
-    }
+  void _showAccountCreationDialog(BuildContext context, String userId, String microfinancieraId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Opciones de Solicitud'),
+        content: const Text(
+          'Puedes solicitar un crédito de dos formas:\n\n'
+          '1. Crear una cuenta (recomendado): Tendrás acceso completo a todos los servicios\n\n'
+          '2. Solicitar sin cuenta: Solo para esta solicitud de crédito'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showCreditWithoutAccountConfirmation(context, userId, microfinancieraId);
+            },
+            child: const Text('Solicitar sin Cuenta'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => SimpleAccountCreationModal(
+                  userId: userId,
+                  microfinancieraId: microfinancieraId,
+                ),
+              );
+            },
+            child: const Text('Crear Cuenta'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreditWithoutAccountConfirmation(BuildContext context, String userId, String microfinancieraId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Solicitud sin Cuenta'),
+        content: const Text(
+          'Al solicitar un crédito sin crear una cuenta:\n\n'
+          '• Solo podrás realizar esta solicitud\n'
+          '• Necesitarás proporcionar tu número de cuenta y CCI\n'
+          '• No tendrás acceso a otros servicios de la plataforma\n\n'
+          '¿Estás seguro de que quieres continuar sin crear una cuenta?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Volver'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LoanApplicationScreen(
+                    userId: userId,
+                    microfinancieraId: microfinancieraId,
+                    isWithoutAccount: true,
+                  ),
+                ),
+              );
+            },
+            child: const Text('Continuar sin Cuenta'),
+          ),
+        ],
+      ),
+    );
   }
 }

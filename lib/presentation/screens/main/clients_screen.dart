@@ -10,22 +10,38 @@ class ClientsScreen extends StatefulWidget {
 class _ClientsScreenState extends State<ClientsScreen> {
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
-      body: const Center(
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people, size: 100, color: Colors.blue),
-            SizedBox(height: 16),
+            Icon(
+              Icons.people, 
+              size: screenWidth * 0.25, // 25% del ancho
+              color: Colors.blue,
+            ),
+            SizedBox(height: screenHeight * 0.02), // 2% de la altura
             Text(
               'Gestión de Clientes',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: screenWidth * 0.06, // 6% del ancho
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'Aquí podrás gestionar todos tus clientes',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-              textAlign: TextAlign.center,
+            SizedBox(height: screenHeight * 0.01), // 1% de la altura
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.1), // 10% del ancho
+              child: Text(
+                'Aquí podrás gestionar todos tus clientes',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.04, // 4% del ancho
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),

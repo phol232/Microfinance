@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../domain/entities/app_user.dart';
+import '../../../domain/entities/user_profile.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/usecases/auth/login_user_usecase.dart';
 import '../../../domain/usecases/auth/register_user_usecase.dart';
@@ -94,7 +95,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthMicrofinancierasLoading());
+    emit(const AuthLoading());
 
     final params = LoginParams(
       email: event.email,
@@ -111,9 +112,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           errorCode: 'login_error',
         ),
       ),
-      (user) async {
-        // Verificar el estado del usuario después del login
-        await _checkUserStatusAndEmit(user, emit);
+      (loginResult) async {
+        // ✅ OPTIMIZACIÓN: Usar perfil cacheado del LoginResult
+        // Esto evita hacer otra consulta a Firestore
+        final user = loginResult.user;
+        if (user == null) {
+          emit(
+            const AuthError(
+              message: 'Error al obtener usuario',
+              errorCode: 'login_error',
+            ),
+          );
+          return;
+        }
+
+        final appUser = AppUser(
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoUrl: user.photoURL,
+        );
+
+        // Verificar el estado del usuario usando el perfil cacheado
+        await _checkUserStatusAndEmit(
+          appUser,
+          emit,
+          cachedProfile: loginResult.profile,
+        );
       },
     );
   }
@@ -122,7 +147,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthRegisterRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthMicrofinancierasLoading());
+    emit(const AuthLoading());
 
     final params = RegisterParams(
       email: event.email,
@@ -179,19 +204,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   /// Verifica el estado del usuario y emite el estado correspondiente
+  /// ✅ OPTIMIZACIÓN: Acepta perfil cacheado opcional
   Future<void> _checkUserStatusAndEmit(
     AppUser user,
-    Emitter<AuthState> emit,
-  ) async {
-    await _validateUserAccess(user, emit);
+    Emitter<AuthState> emit, {
+    UserProfile? cachedProfile,
+  }) async {
+    await _validateUserAccess(user, emit, cachedProfile: cachedProfile);
   }
 
   /// Valida el acceso del usuario basado en rol y status usando el UseCase
+  /// ✅ OPTIMIZACIÓN: Acepta perfil cacheado opcional
   Future<void> _validateUserAccess(
     AppUser user,
-    Emitter<AuthState> emit,
-  ) async {
-    final params = ValidateUserAccessParams(user: user);
+    Emitter<AuthState> emit, {
+    UserProfile? cachedProfile,
+  }) async {
+    final params = ValidateUserAccessParams(
+      user: user,
+      cachedProfile: cachedProfile,
+    );
     final result = await _validateUserAccessUseCase(params);
 
     result.fold(

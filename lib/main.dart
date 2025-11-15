@@ -8,12 +8,18 @@ import 'core/env/env_loader.dart';
 import 'data/datasources/firebase_auth_datasource.dart';
 import 'data/datasources/intake_request_datasource.dart';
 import 'data/datasources/loan_application_datasource.dart';
+import 'data/datasources/account_datasource.dart';
+import 'data/datasources/card_datasource.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/intake_request_repository_impl.dart';
 import 'data/repositories/loan_application_repository_impl.dart';
+import 'data/repositories/account_repository_impl.dart';
+import 'data/repositories/card_repository_impl.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/intake_request_repository.dart';
 import 'domain/repositories/loan_application_repository.dart';
+import 'domain/repositories/account_repository.dart';
+import 'domain/repositories/card_repository.dart';
 import 'domain/usecases/auth/login_user_usecase.dart';
 import 'domain/usecases/auth/register_user_usecase.dart';
 import 'domain/usecases/auth/logout_user_usecase.dart';
@@ -30,19 +36,32 @@ import 'domain/usecases/intake_request/get_intake_requests_by_status_usecase.dar
 import 'domain/usecases/intake_request/get_recent_intake_requests_usecase.dart';
 import 'domain/usecases/intake_request/get_intake_request_by_id_usecase.dart';
 import 'domain/usecases/intake_request/get_intake_request_status_counts_usecase.dart';
+import 'domain/usecases/account/get_user_accounts_usecase.dart';
+import 'domain/usecases/account/get_account_by_id_usecase.dart';
+import 'domain/usecases/account/create_account_usecase.dart';
+import 'domain/usecases/card/get_user_cards_usecase.dart';
+import 'domain/usecases/card/get_cards_by_account_usecase.dart';
+import 'domain/usecases/card/request_card_usecase.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/auth/auth_event.dart';
 import 'presentation/bloc/profile/profile_bloc.dart';
 import 'presentation/bloc/intake_request/intake_request_bloc.dart';
-import 'presentation/screens/splash/splash_page.dart';
+import 'presentation/bloc/account/account_bloc.dart';
+import 'presentation/bloc/card/card_bloc.dart';
+import 'presentation/screens/auth/auth_wrapper.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/theme/app_theme.dart';
+// TODO: Implementar notificaciones más adelante
+// import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await EnvLoader.ensureInitialized();
     await Firebase.initializeApp(options: FirebaseConfig.currentPlatform);
+
+    // TODO: Inicializar el servicio de notificaciones más adelante
+    // await NotificationService.initialize();
   } catch (e) {
     debugPrint('❌ ERROR CRÍTICO: Error inicializando Firebase: $e');
   }
@@ -75,12 +94,23 @@ class MyApp extends StatelessWidget {
                   dataSource: LoanApplicationDataSource(),
                 ),
               ),
+              RepositoryProvider<AccountRepository>(
+                create: (_) => AccountRepositoryImpl(
+                  accountDataSource: AccountDataSource(),
+                ),
+              ),
+              RepositoryProvider<CardRepository>(
+                create: (_) =>
+                    CardRepositoryImpl(cardDataSource: CardDataSource()),
+              ),
             ],
             child: Builder(
               builder: (context) {
                 final authRepository = context.read<AuthRepository>();
                 final intakeRequestRepository = context
                     .read<IntakeRequestRepository>();
+                final accountRepository = context.read<AccountRepository>();
+                final cardRepository = context.read<CardRepository>();
 
                 return MultiBlocProvider(
                   providers: [
@@ -173,14 +203,53 @@ class MyApp extends StatelessWidget {
                         );
                       },
                     ),
+                    BlocProvider<AccountBloc>(
+                      create: (_) {
+                        final getUserAccountsUseCase = GetUserAccountsUseCase(
+                          accountRepository,
+                        );
+                        final getAccountByIdUseCase = GetAccountByIdUseCase(
+                          accountRepository,
+                        );
+                        final createAccountUseCase = CreateAccountUseCase(
+                          accountRepository,
+                        );
+
+                        return AccountBloc(
+                          accountRepository: accountRepository,
+                          getUserAccountsUseCase: getUserAccountsUseCase,
+                          getAccountByIdUseCase: getAccountByIdUseCase,
+                          createAccountUseCase: createAccountUseCase,
+                        );
+                      },
+                    ),
+                    BlocProvider<CardBloc>(
+                      create: (_) {
+                        final getUserCardsUseCase = GetUserCardsUseCase(
+                          cardRepository,
+                        );
+                        final getCardsByAccountUseCase =
+                            GetCardsByAccountUseCase(cardRepository);
+                        final requestCardUseCase = RequestCardUseCase(
+                          cardRepository,
+                        );
+
+                        return CardBloc(
+                          cardRepository: cardRepository,
+                          getUserCardsUseCase: getUserCardsUseCase,
+                          getCardsByAccountUseCase: getCardsByAccountUseCase,
+                          requestCardUseCase: requestCardUseCase,
+                        );
+                      },
+                    ),
                   ],
                   child: MaterialApp(
-                    title: 'Microfinance App',
+                    title: 'Avante',
                     debugShowCheckedModeBanner: false,
                     theme: AppTheme.lightTheme,
                     darkTheme: AppTheme.darkTheme,
                     themeMode: themeProvider.themeMode,
-                    home: const SplashPage(),
+                    home: const AuthWrapper(),
                     builder: (context, child) {
                       return child ?? const SizedBox.shrink();
                     },

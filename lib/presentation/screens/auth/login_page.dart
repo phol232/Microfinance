@@ -53,7 +53,18 @@ class _LoginPageState extends State<LoginPage> {
       _isLoadingMicrofinancieras = true;
     });
 
-    context.read<AuthBloc>().add(const AuthLoadMicrofinancierasRequested());
+    try {
+      context.read<AuthBloc>().add(const AuthLoadMicrofinancierasRequested());
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingMicrofinancieras = false;
+        });
+        _showErrorSnackBar(
+          'Error al cargar microfinancieras. Intenta nuevamente.',
+        );
+      }
+    }
   }
 
   @override
@@ -80,19 +91,40 @@ class _LoginPageState extends State<LoginPage> {
             _isLoadingMicrofinancieras = false;
           });
         } else if (state is AuthError) {
-          if (state.errorCode == 'microfinancieras_load_error') {
+          // Detener loading de microfinancieras si hay error relacionado
+          if (state.errorCode == 'microfinancieras_load_error' ||
+              state.errorCode == 'login_error' ||
+              state.errorCode == 'registration_error') {
             setState(() => _isLoadingMicrofinancieras = false);
           }
-          _showErrorSnackBar(state.message);
+          // Mostrar error después de que el frame se complete
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _showErrorSnackBar(state.message);
+            }
+          });
         } else if (state is AuthAuthenticated) {
+          // Asegurar que el loading se detenga al autenticarse
+          if (_isLoadingMicrofinancieras) {
+            setState(() => _isLoadingMicrofinancieras = false);
+          }
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).popUntil((route) => route.isFirst);
           }
         } else if (state is AuthPending) {
+          // Detener loading si está pendiente
+          if (_isLoadingMicrofinancieras) {
+            setState(() => _isLoadingMicrofinancieras = false);
+          }
           // El AuthWrapper se encargará de mostrar la página de pending
           // No necesitamos hacer nada aquí, solo asegurar que no navegamos
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        } else if (state is AuthUnauthenticated || state is AuthInitial) {
+          // Detener loading si vuelve a estado inicial o no autenticado
+          if (_isLoadingMicrofinancieras) {
+            setState(() => _isLoadingMicrofinancieras = false);
           }
         }
       },
@@ -108,6 +140,9 @@ class _LoginPageState extends State<LoginPage> {
               child: SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final screenHeight = MediaQuery.of(context).size.height;
+
                     final bool isVerySmall = constraints.maxWidth <= 360;
                     final bool isCompact =
                         constraints.maxWidth <= AppSpacing.mobileBreakpoint;
@@ -115,43 +150,47 @@ class _LoginPageState extends State<LoginPage> {
                         constraints.maxWidth > AppSpacing.tabletBreakpoint;
 
                     final double maxWidth = isTablet
-                        ? 450
+                        ? screenWidth *
+                              0.6 // 60% en tablet
                         : (isVerySmall
-                              ? constraints.maxWidth - 32
-                              : constraints.maxWidth * 0.9);
+                              ? screenWidth *
+                                    0.9 // 90% en pantallas muy pequeñas
+                              : screenWidth * 0.85); // 85% en móviles normales
 
                     return Center(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
                         padding: EdgeInsets.only(
-                          left: isCompact ? AppSpacing.md : AppSpacing.lg,
-                          right: isCompact ? AppSpacing.md : AppSpacing.lg,
-                          top: AppSpacing.lg,
+                          left: screenWidth * 0.04, // 4% del ancho
+                          right: screenWidth * 0.04, // 4% del ancho
+                          top: screenHeight * 0.02, // 2% de la altura
                           bottom:
-                              AppSpacing.lg +
+                              screenHeight * 0.02 +
                               MediaQuery.of(context).padding.bottom,
                         ),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
                             maxWidth: maxWidth,
                             minHeight:
-                                constraints.maxHeight -
-                                (AppSpacing.lg * 2) -
-                                MediaQuery.of(context).padding.bottom,
+                                screenHeight * 0.8, // 80% de la altura mínima
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildBrandSection(isCompact: isVerySmall),
-                              if (!isVerySmall)
-                                const SizedBox(height: AppSpacing.xl),
+                              // Logo removido para optimizar espacio
                               _buildWelcomeSection(isCompact: isVerySmall),
-                              const SizedBox(height: AppSpacing.xxxl),
+                              SizedBox(
+                                height: screenHeight * 0.03,
+                              ), // 3% de la altura
                               _buildLoginForm(isLoading: isLoading),
-                              const SizedBox(height: AppSpacing.lg),
+                              SizedBox(
+                                height: screenHeight * 0.02,
+                              ), // 2% de la altura
                               _buildSignUpPrompt(),
-                              const SizedBox(height: AppSpacing.md),
+                              SizedBox(
+                                height: screenHeight * 0.02,
+                              ), // 2% de la altura
                             ],
                           ),
                         ),
@@ -168,29 +207,34 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildBrandSection({bool isCompact = false}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     if (isCompact) {
       return Column(
         children: [
           Container(
-            padding: EdgeInsets.all(isCompact ? AppSpacing.md : AppSpacing.lg),
+            padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
             decoration: BoxDecoration(
               gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              borderRadius: BorderRadius.circular(
+                screenWidth * 0.04,
+              ), // 4% del ancho
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  blurRadius: screenWidth * 0.02, // 2% del ancho
+                  offset: Offset(0, screenHeight * 0.005), // 0.5% de la altura
                 ),
               ],
             ),
             child: Icon(
               Icons.account_balance,
               color: AppColors.onPrimary,
-              size: isCompact ? 28 : 32,
+              size: screenWidth * 0.07, // 7% del ancho
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: screenHeight * 0.02), // 2% de la altura
           Column(
             children: [
               Text(
@@ -198,6 +242,7 @@ class _LoginPageState extends State<LoginPage> {
                 style: AppTypography.headlineMedium.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
+                  fontSize: screenWidth * 0.06, // 6% del ancho
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -205,6 +250,7 @@ class _LoginPageState extends State<LoginPage> {
                 'Gestión financiera inteligente',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.onSurfaceVariant,
+                  fontSize: screenWidth * 0.035, // 3.5% del ancho
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -218,25 +264,27 @@ class _LoginPageState extends State<LoginPage> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.all(screenWidth * 0.05), // 5% del ancho
           decoration: BoxDecoration(
             gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            borderRadius: BorderRadius.circular(
+              screenWidth * 0.04,
+            ), // 4% del ancho
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+                blurRadius: screenWidth * 0.03, // 3% del ancho
+                offset: Offset(0, screenHeight * 0.008), // 0.8% de la altura
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.account_balance,
             color: AppColors.onPrimary,
-            size: 40,
+            size: screenWidth * 0.1, // 10% del ancho
           ),
         ),
-        const SizedBox(width: AppSpacing.lg),
+        SizedBox(width: screenWidth * 0.05), // 5% del ancho
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -245,12 +293,14 @@ class _LoginPageState extends State<LoginPage> {
               style: AppTypography.headlineLarge.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
+                fontSize: screenWidth * 0.08, // 8% del ancho
               ),
             ),
             Text(
               'Gestión financiera inteligente',
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.onSurfaceVariant,
+                fontSize: screenWidth * 0.04, // 4% del ancho
               ),
             ),
           ],
@@ -446,17 +496,7 @@ class _LoginPageState extends State<LoginPage> {
             side: const BorderSide(color: Colors.red),
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-
-        OutlinedButton.icon(
-          onPressed: isLoading ? null : _signInWithFacebook,
-          icon: const Icon(Icons.facebook, color: Colors.blue),
-          label: const Text('Continuar con Facebook'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            side: const BorderSide(color: Colors.blue),
-          ),
-        ),
+        // Botón de Facebook removido
       ],
     );
   }
@@ -559,9 +599,6 @@ class _LoginPageState extends State<LoginPage> {
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Ingresa tu contraseña';
-    }
-    if (value.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres';
     }
     return null;
   }

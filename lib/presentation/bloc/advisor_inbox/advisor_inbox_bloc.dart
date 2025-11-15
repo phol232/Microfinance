@@ -21,7 +21,8 @@ class AdvisorInboxBloc extends Bloc<AdvisorInboxEvent, AdvisorInboxState> {
   AdvisorInboxBloc({
     required GetAssignedApplicationsUseCase getAssignedApplicationsUseCase,
     required GetApplicationsByStatusUseCase getApplicationsByStatusUseCase,
-    required TakeOwnershipOfApplicationUseCase takeOwnershipOfApplicationUseCase,
+    required TakeOwnershipOfApplicationUseCase
+    takeOwnershipOfApplicationUseCase,
     required UpdateApplicationStatusUseCase updateApplicationStatusUseCase,
     required GetApplicationStatsUseCase getApplicationStatsUseCase,
     required GetAgentStatsUseCase getAgentStatsUseCase,
@@ -57,14 +58,10 @@ class AdvisorInboxBloc extends Bloc<AdvisorInboxEvent, AdvisorInboxState> {
 
     result.fold(
       (failure) => emit(
-        state.copyWith(
-          isLoading: false,
-          error: _getFailureMessage(failure),
-        ),
+        state.copyWith(isLoading: false, error: _getFailureMessage(failure)),
       ),
-      (applications) => emit(
-        state.copyWith(applications: applications, isLoading: false),
-      ),
+      (applications) =>
+          emit(state.copyWith(applications: applications, isLoading: false)),
     );
   }
 
@@ -81,10 +78,7 @@ class AdvisorInboxBloc extends Bloc<AdvisorInboxEvent, AdvisorInboxState> {
 
     result.fold(
       (failure) => emit(
-        state.copyWith(
-          isLoading: false,
-          error: _getFailureMessage(failure),
-        ),
+        state.copyWith(isLoading: false, error: _getFailureMessage(failure)),
       ),
       (applications) => emit(
         state.copyWith(
@@ -230,25 +224,25 @@ class AdvisorInboxBloc extends Bloc<AdvisorInboxEvent, AdvisorInboxState> {
         agentId: event.agentId!,
       );
 
-      result.fold(
-        (failure) {
-          // No mostrar error para stats ya que no es crítico
-          AppLogger.error('Error cargando estadísticas de agente', tag: 'AdvisorInboxBloc', error: failure);
-        },
-        (stats) => emit(state.copyWith(stats: stats)),
-      );
+      result.fold((failure) {
+        AppLogger.error(
+          'Error cargando estadísticas de agente',
+          tag: 'AdvisorInboxBloc',
+          error: failure,
+        );
+      }, (stats) => emit(state.copyWith(stats: stats)));
     } else {
       final result = await _getApplicationStatsUseCase(
         microfinancieraId: event.microfinancieraId,
       );
 
-      result.fold(
-        (failure) {
-          // No mostrar error para stats ya que no es crítico
-          AppLogger.error('Error cargando estadísticas de aplicaciones', tag: 'AdvisorInboxBloc', error: failure);
-        },
-        (stats) => emit(state.copyWith(stats: stats)),
-      );
+      result.fold((failure) {
+        AppLogger.error(
+          'Error cargando estadísticas de aplicaciones',
+          tag: 'AdvisorInboxBloc',
+          error: failure,
+        );
+      }, (stats) => emit(state.copyWith(stats: stats)));
     }
   }
 

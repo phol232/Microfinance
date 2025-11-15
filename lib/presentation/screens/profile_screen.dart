@@ -68,6 +68,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return MultiBlocListener(
       listeners: [
         BlocListener<AuthBloc, AuthState>(
@@ -140,22 +143,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final bool isCompact =
-                        constraints.maxWidth <= AppSpacing.mobileBreakpoint;
+                    final bool isCompact = screenWidth <= 600; // Usando screenWidth
                     final double horizontalPadding = isCompact
-                        ? AppSpacing.md
-                        : AppSpacing.screenPadding;
+                        ? screenWidth * 0.04 // 4% del ancho
+                        : screenWidth * 0.08; // 8% del ancho
 
                     return SingleChildScrollView(
                       padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding,
-                        vertical: AppSpacing.lg,
+                        vertical: screenHeight * 0.03, // 3% de la altura
                       ),
                       child: Column(
                         children: [
                           // Header profesional con avatar y stats
                           _buildProfileHeader(),
-                          const SizedBox(height: AppSpacing.xl),
+                          SizedBox(height: screenHeight * 0.04), // 4% de la altura
 
                           // Información personal en cards elegantes
                           if (_isEditing)
@@ -163,7 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           else
                             _buildProfileSections(),
 
-                          const SizedBox(height: AppSpacing.xxxl),
+                          SizedBox(height: screenHeight * 0.06), // 6% de la altura
                         ],
                       ),
                     );
@@ -179,28 +181,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.01), // 1% del ancho
       decoration: BoxDecoration(
         gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        borderRadius: BorderRadius.circular(screenWidth * 0.06), // 6% del ancho
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.2),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            blurRadius: screenWidth * 0.04, // 4% del ancho
+            offset: Offset(0, screenHeight * 0.01), // 1% de la altura
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.all(screenWidth * 0.05), // 5% del ancho
         child: Column(
           children: [
             // Avatar con indicador de estado
             Stack(
               children: [
                 CircleAvatar(
-                  radius: 50,
+                  radius: screenWidth * 0.125, // 12.5% del ancho
                   backgroundColor: AppColors.onPrimary.withValues(alpha: 0.2),
                   backgroundImage:
                       _currentProfile?.photoUrl != null &&
@@ -217,6 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: AppTypography.headlineMedium.copyWith(
                             color: AppColors.onPrimary,
                             fontWeight: FontWeight.bold,
+                            fontSize: screenWidth * 0.08, // 8% del ancho
                           ),
                         )
                       : null,
@@ -225,21 +231,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   bottom: 0,
                   right: 0,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: EdgeInsets.all(screenWidth * 0.01), // 1% del ancho
                     decoration: const BoxDecoration(
                       color: Colors.green,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check,
                       color: Colors.white,
-                      size: 16,
+                      size: screenWidth * 0.04, // 4% del ancho
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: screenHeight * 0.025), // 2.5% de la altura
 
             // Nombre completo
             Text(
@@ -247,10 +253,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: AppTypography.headlineMedium.copyWith(
                 color: AppColors.onPrimary,
                 fontWeight: FontWeight.bold,
+                fontSize: screenWidth * 0.055, // 5.5% del ancho
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: screenHeight * 0.005), // 0.5% de la altura
 
             // Email con icono
             Row(
@@ -259,14 +266,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Icon(
                   Icons.email_outlined,
                   color: AppColors.onPrimary.withValues(alpha: 0.8),
-                  size: 16,
+                  size: screenWidth * 0.04, // 4% del ancho
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                SizedBox(width: screenWidth * 0.02), // 2% del ancho
                 Flexible(
                   child: Text(
                     _currentProfile?.email ?? '',
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.onPrimary.withValues(alpha: 0.9),
+                      fontSize: screenWidth * 0.035, // 3.5% del ancho
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -274,7 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
 
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: screenHeight * 0.025), // 2.5% de la altura
 
             // Stats row
             _buildStatsRow(),
@@ -285,14 +293,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatsRow() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+      padding: EdgeInsets.symmetric(
+        horizontal: screenWidth * 0.04, // 4% del ancho
+        vertical: screenHeight * 0.015, // 1.5% de la altura
       ),
       decoration: BoxDecoration(
         color: AppColors.onPrimary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        borderRadius: BorderRadius.circular(screenWidth * 0.04), // 4% del ancho
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -300,7 +311,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildStatItem('Años', '2+', Icons.calendar_today_outlined),
           _buildVerticalDivider(),
           _buildStatItem(
-            'Préstamos',
+            'Créditos',
             '5',
             Icons.account_balance_wallet_outlined,
           ),
@@ -312,21 +323,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatItem(String label, String value, IconData icon) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Column(
       children: [
-        Icon(icon, color: AppColors.onPrimary.withValues(alpha: 0.9), size: 20),
-        const SizedBox(height: 4),
+        Icon(
+          icon, 
+          color: AppColors.onPrimary.withValues(alpha: 0.9), 
+          size: screenWidth * 0.05, // 5% del ancho
+        ),
+        SizedBox(height: screenHeight * 0.005), // 0.5% de la altura
         Text(
           value,
           style: AppTypography.titleSmall.copyWith(
             color: AppColors.onPrimary,
             fontWeight: FontWeight.bold,
+            fontSize: screenWidth * 0.035, // 3.5% del ancho
           ),
         ),
         Text(
           label,
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.onPrimary.withValues(alpha: 0.8),
+            fontSize: screenWidth * 0.03, // 3% del ancho
           ),
         ),
       ],
@@ -334,9 +354,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildVerticalDivider() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Container(
-      height: 40,
-      width: 1,
+      height: screenHeight * 0.05, // 5% de la altura
+      width: screenWidth * 0.002, // 0.2% del ancho
       color: AppColors.onPrimary.withValues(alpha: 0.3),
     );
   }

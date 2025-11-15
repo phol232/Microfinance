@@ -63,8 +63,22 @@ dependencies:
   # Utilities
   intl: ^0.20.2
   
+  # Location Services
+  geolocator: ^13.0.2
+  permission_handler: ^11.3.1
+  url_launcher: ^6.3.1
+  google_maps_flutter: ^2.9.0
+  google_polyline_algorithm: ^3.1.0
+  
+  # Biometric Authentication
+  local_auth: ^2.3.0
+  
   # Charts for dashboard
   fl_chart: ^0.66.2
+  
+  # Push Notifications
+  firebase_messaging: ^16.0.3
+  flutter_local_notifications: ^19.5.0
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +91,9 @@ dev_dependencies:
   build_runner: ^2.4.9
   fake_cloud_firestore: ^4.0.0
   bloc_test: ^9.1.7
+  
+  # Launcher Icons
+  flutter_launcher_icons: ^0.13.1
   
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -129,3 +146,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Launcher Icons Configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/Gemini_Generated_Image_i0bxwii0bxwii0bx.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/Gemini_Generated_Image_i0bxwii0bxwii0bx.png"

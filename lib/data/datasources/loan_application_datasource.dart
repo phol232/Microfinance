@@ -249,6 +249,48 @@ class LoanApplicationDataSource {
     }
   }
 
+  /// Crear nueva aplicación de préstamo
+  Future<String> createApplication(
+    String microfinancieraId,
+    LoanApplication application,
+  ) async {
+    try {
+      final docRef = _firestore
+          .collection('microfinancieras')
+          .doc(microfinancieraId)
+          .collection('loanApplications')
+          .doc();
+
+      // Crear la aplicación con el ID generado
+      final applicationWithId = LoanApplication(
+        id: docRef.id,
+        userId: application.userId,
+        microfinancieraId: application.microfinancieraId,
+        product: application.product,
+        personalInfo: application.personalInfo,
+        contactInfo: application.contactInfo,
+        employmentInfo: application.employmentInfo,
+        financialInfo: application.financialInfo,
+        additionalInfo: application.additionalInfo,
+        consents: application.consents,
+        location: application.location,
+        status: application.status,
+        routing: application.routing,
+        scoring: application.scoring,
+        decision: application.decision,
+        validations: application.validations,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await docRef.set(applicationWithId.toFirestore());
+
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Error creando aplicación: $e');
+    }
+  }
+
   /// Obtener estadísticas por agente
   Future<Map<String, int>> getAgentStats(
     String microfinancieraId,
