@@ -72,10 +72,13 @@ dependencies:
   
   # Biometric Authentication
   local_auth: ^2.3.0
-  
+
   # Charts for dashboard
   fl_chart: ^0.66.2
-  
+
+  # Markdown rendering for chatbot responses
+  flutter_markdown: ^0.7.3+1
+
   # Push Notifications
   firebase_messaging: ^16.0.3
   flutter_local_notifications: ^19.5.0

@@ -103,21 +103,11 @@ class _LoginPageState extends State<LoginPage> {
               _showErrorSnackBar(state.message);
             }
           });
-        } else if (state is AuthAuthenticated) {
+        } else if (state is AuthAuthenticated || state is AuthPending) {
           // Asegurar que el loading se detenga al autenticarse
           if (_isLoadingMicrofinancieras) {
             setState(() => _isLoadingMicrofinancieras = false);
           }
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          }
-        } else if (state is AuthPending) {
-          // Detener loading si está pendiente
-          if (_isLoadingMicrofinancieras) {
-            setState(() => _isLoadingMicrofinancieras = false);
-          }
-          // El AuthWrapper se encargará de mostrar la página de pending
-          // No necesitamos hacer nada aquí, solo asegurar que no navegamos
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).popUntil((route) => route.isFirst);
           }

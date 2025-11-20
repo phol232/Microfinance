@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../domain/entities/card.dart' as domain;
 import '../../../domain/entities/transaction.dart';
-import '../../../services/transaction_service.dart';
+import 'package:mobile/core/services/transaction_service.dart';
 import '../../../data/repositories/transaction_repository_impl.dart';
 import '../../../data/datasources/transaction_datasource.dart';
 import '../../../domain/usecases/transaction/process_payment_usecase.dart';

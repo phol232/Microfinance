@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mobile/core/tenant/tenant_controller.dart';
 
 import '../../bloc/intake_request/intake_request_bloc.dart';
 import '../../bloc/intake_request/intake_request_event.dart';
 import '../../bloc/intake_request/intake_request_state.dart';
 import '../details/loan_application_detail_page.dart';
-import '../../utils/product_colors.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../bloc/profile/profile_bloc.dart';
 import '../../bloc/profile/profile_state.dart';
 import '../loan_application_screen.dart';
 import '../../widgets/simple_account_creation_modal.dart';
+import '../../widgets/chatbot/chatbot_launcher.dart';
 import '../../bloc/account/account_bloc.dart';
 import '../../bloc/account/account_state.dart';
 import '../../bloc/account/account_event.dart';
@@ -27,13 +27,11 @@ class ApplicationsScreen extends StatefulWidget {
 }
 
 class _ApplicationsScreenState extends State<ApplicationsScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _microfinancieraIdFallback = 'mf_demo_001';
-
-  String _resolveMicrofinancieraId(BuildContext context) {
+  String? _resolveMicrofinancieraId(BuildContext context) {
     final profile = context.read<ProfileBloc>().state.profile;
-    return profile?.microfinancieraId ?? _microfinancieraIdFallback;
+    final tenantId = context.read<TenantController>().tenantId;
+    return profile?.microfinancieraId ?? tenantId;
   }
 
   @override
@@ -54,7 +52,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     final authState = context.watch<AuthBloc>().state;
     final String? uid = authState is AuthAuthenticated
         ? authState.user.uid
@@ -81,62 +79,69 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
               Text(
                 'Envía y revisa el estado de tus solicitudes de préstamo',
                 style: TextStyle(
-                  fontSize: screenWidth * 0.04, // 4% del ancho
+                  fontSize: screenWidth * 0.04,
                   color: Colors.grey,
                 ),
               ),
-              SizedBox(height: screenHeight * 0.03), // 3% de la altura
-
-              // Estadísticas rápidas
+              SizedBox(height: screenHeight * 0.03),
               _buildStatsCards(uid),
-              SizedBox(height: screenHeight * 0.03), // 3% de la altura
-
-              // Lista de solicitudes
+              SizedBox(height: screenHeight * 0.03),
               _buildApplicationsList(uid),
             ],
           ),
         ),
       ),
-      floatingActionButton: BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
-        builder: (context, state) {
-          final authState = context.watch<AuthBloc>().state;
-          final String? uid = authState is AuthAuthenticated
-              ? authState.user.uid
-              : null;
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const ChatBotLauncherButton(heroTag: 'chatbot-applications'),
+          const SizedBox(height: 12),
+          BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
+            builder: (context, state) {
+              final authState = context.watch<AuthBloc>().state;
+              final String? uid = authState is AuthAuthenticated
+                  ? authState.user.uid
+                  : null;
 
-          final userRequests = uid == null
-              ? state.requests
-              : state.requests.where((r) => r.userId == uid).toList();
+              final userRequests = uid == null
+                  ? state.requests
+                  : state.requests.where((r) => r.userId == uid).toList();
 
-          // Verificar si hay solicitudes pendientes
-          final hasPendingApplications = userRequests.any((request) =>
-              request.status == 'pending' || request.status == 'in_review');
+              final hasPendingApplications = userRequests.any(
+                (request) =>
+                    request.status == 'pending' || request.status == 'in_review',
+              );
 
-          return FloatingActionButton(
-            onPressed: hasPendingApplications
-                ? () => _showPendingApplicationMessage(context)
-                : () => _showCreateRequestSheet(context),
-            backgroundColor: hasPendingApplications
-                ? Colors.grey
-                : Theme.of(context).colorScheme.primary,
-            child: Icon(
-              hasPendingApplications ? Icons.block : Icons.add,
-              color: hasPendingApplications
-                  ? Colors.white70
-                  : Theme.of(context).colorScheme.onPrimary,
-            ),
-            tooltip: hasPendingApplications
-                ? 'Tienes una solicitud pendiente'
-                : 'Nueva solicitud',
-          );
-        },
+              return FloatingActionButton(
+                heroTag: 'applications-new-request',
+                onPressed: hasPendingApplications
+                    ? () => _showPendingApplicationMessage(context)
+                    : () => _showCreateRequestSheet(context),
+                backgroundColor: hasPendingApplications
+                    ? Colors.grey
+                    : Theme.of(context).colorScheme.primary,
+                child: Icon(
+                  hasPendingApplications ? Icons.block : Icons.add,
+                  color: hasPendingApplications
+                      ? Colors.white70
+                      : Theme.of(context).colorScheme.onPrimary,
+                ),
+                tooltip: hasPendingApplications
+                    ? 'Tienes una solicitud pendiente'
+                    : 'Nueva solicitud',
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStatsCards(String? uid) {
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return BlocBuilder<IntakeRequestBloc, IntakeRequestState>(
       builder: (context, state) {
         final filtered = uid == null
@@ -193,15 +198,15 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   }) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     return Card(
       child: Padding(
         padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
         child: Column(
           children: [
             Icon(
-              icon, 
-              color: color, 
+              icon,
+              color: color,
               size: screenWidth * 0.08, // 8% del ancho
             ),
             SizedBox(height: screenHeight * 0.01), // 1% de la altura
@@ -425,7 +430,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
   void _showCreateRequestSheet(BuildContext context) {
     final authState = context.read<AuthBloc>().state;
-    
+
     if (authState is! AuthAuthenticated) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -437,7 +442,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     }
 
     final profileState = context.read<ProfileBloc>().state;
-    
+
     if (profileState.status != ProfileStatus.loaded) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -448,12 +453,14 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
       return;
     }
 
-    final microfinancieraId = profileState.profile?.microfinancieraId;
-    
+    final microfinancieraId = _resolveMicrofinancieraId(context);
+
     if (microfinancieraId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No se pudo obtener la información de la microfinanciera'),
+          content: Text(
+            'No se pudo obtener la información de la microfinanciera',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -462,7 +469,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
     // Verificar si el usuario tiene cuentas
     final accountState = context.read<AccountBloc>().state;
-    
+
     if (accountState is AccountLoaded && accountState.accounts.isNotEmpty) {
       // Usuario tiene cuentas, mostrar modal de solicitud de crédito
       Navigator.push(
@@ -476,11 +483,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
       );
     } else {
       // Usuario no tiene cuentas, mostrar modal de creación de cuenta
-      _showAccountCreationDialog(context, authState.user.uid, microfinancieraId);
+      _showAccountCreationDialog(
+        context,
+        authState.user.uid,
+        microfinancieraId,
+      );
     }
   }
 
-  void _showAccountCreationDialog(BuildContext context, String userId, String microfinancieraId) {
+  void _showAccountCreationDialog(
+    BuildContext context,
+    String userId,
+    String microfinancieraId,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -488,7 +503,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
         content: const Text(
           'Puedes solicitar un crédito de dos formas:\n\n'
           '1. Crear una cuenta (recomendado): Tendrás acceso completo a todos los servicios\n\n'
-          '2. Solicitar sin cuenta: Solo para esta solicitud de crédito'
+          '2. Solicitar sin cuenta: Solo para esta solicitud de crédito',
         ),
         actions: [
           TextButton(
@@ -498,7 +513,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _showCreditWithoutAccountConfirmation(context, userId, microfinancieraId);
+              _showCreditWithoutAccountConfirmation(
+                context,
+                userId,
+                microfinancieraId,
+              );
             },
             child: const Text('Solicitar sin Cuenta'),
           ),
@@ -521,7 +540,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     );
   }
 
-  void _showCreditWithoutAccountConfirmation(BuildContext context, String userId, String microfinancieraId) {
+  void _showCreditWithoutAccountConfirmation(
+    BuildContext context,
+    String userId,
+    String microfinancieraId,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -531,7 +554,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           '• Solo podrás realizar esta solicitud\n'
           '• Necesitarás proporcionar tu número de cuenta y CCI\n'
           '• No tendrás acceso a otros servicios de la plataforma\n\n'
-          '¿Estás seguro de que quieres continuar sin crear una cuenta?'
+          '¿Estás seguro de que quieres continuar sin crear una cuenta?',
         ),
         actions: [
           TextButton(

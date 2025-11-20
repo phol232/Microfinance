@@ -44,7 +44,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String dni,
     required String phone,
     required String microfinancieraId,
-    List<String> roles = const ['analyst'],
+    List<String> roles = const ['customer'],
   }) async {
     final credential = await _dataSource.registerWithEmailAndPassword(
       email: email,
@@ -67,7 +67,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<AppUser?> signInWithGoogle({
     required String microfinancieraId,
-    List<String> roles = const ['analyst'],
+    List<String> roles = const ['customer'],
   }) async {
     final credential = await _dataSource.signInWithGoogle(
       microfinancieraId: microfinancieraId,

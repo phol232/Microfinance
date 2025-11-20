@@ -3,17 +3,22 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:mobile/core/tenant/tenant_resolver.dart';
 import '../../domain/entities/account.dart';
 
 class AccountDataSource {
-  AccountDataSource({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  AccountDataSource({
+    FirebaseFirestore? firestore,
+    required TenantResolver tenantResolver,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _tenantResolver = tenantResolver;
 
   final FirebaseFirestore _firestore;
+  final TenantResolver _tenantResolver;
 
   Stream<List<Account>> getUserAccounts(String userId) {
     try {
-      const microfinancieraId = 'mf_demo_001';
+      final microfinancieraId = _requireTenantId();
 
       return _firestore
           .collection('microfinancieras')
@@ -171,7 +176,7 @@ class AccountDataSource {
   /// Obtiene el número de cuentas del usuario
   Future<int> getUserAccountCount(String userId) async {
     try {
-      const microfinancieraId = 'mf_demo_001';
+      final microfinancieraId = _requireTenantId();
       final snapshot = await _firestore
           .collection('microfinancieras')
           .doc(microfinancieraId)
@@ -183,6 +188,16 @@ class AccountDataSource {
       _logError('getUserAccountCount', error, stackTrace);
       return 0;
     }
+  }
+
+  String _requireTenantId() {
+    final tenantId = _tenantResolver.tenantId;
+    if (tenantId == null || tenantId.isEmpty) {
+      throw StateError(
+        'Tenant no configurado. Selecciona una microfinanciera para continuar.',
+      );
+    }
+    return tenantId;
   }
 
   /// Genera un número de cuenta único de 14-16 dígitos según estándar peruano

@@ -3,8 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
-import '../../services/location_service.dart';
-import '../../services/directions_service.dart';
+import 'package:mobile/core/services/location_service.dart';
+import 'package:mobile/core/services/directions_service.dart';
 
 class LocationMapScreen extends StatefulWidget {
   const LocationMapScreen({super.key});

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../../domain/usecases/reports/generate_report_usecase.dart';
 import '../../../domain/usecases/reports/get_conversion_metrics_usecase.dart';
 import '../../../domain/usecases/reports/debug_applications_count_usecase.dart';
+import 'package:mobile/core/tenant/tenant_controller.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -23,6 +25,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
   bool _isLoading = false;
   List<dynamic>? _reportData;
   Map<String, dynamic>? _metrics;
+
+  String? _currentMicrofinancieraId() {
+    return context.read<TenantController>().tenantId;
+  }
+
+  bool _assertTenantConfigured() {
+    final tenantId = _currentMicrofinancieraId();
+    if (tenantId == null || tenantId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Selecciona una microfinanciera para generar reportes.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
 
   @override
   void initState() {
@@ -426,9 +450,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _reportData = null;
     });
 
+    final microfinancieraId = _currentMicrofinancieraId();
+    if (microfinancieraId == null || microfinancieraId.isEmpty) {
+      _assertTenantConfigured();
+      setState(() => _isLoading = false);
+      return;
+    }
+
     final result = await _generateReportUseCase.call(
       GenerateReportParams(
-        microfinancieraId: 'mf_demo_001',
+        microfinancieraId: microfinancieraId,
         dateFrom: _startDate,
         dateTo: _endDate,
       ),
@@ -473,9 +504,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _metrics = null;
     });
 
+    final microfinancieraId = _currentMicrofinancieraId();
+    if (microfinancieraId == null || microfinancieraId.isEmpty) {
+      _assertTenantConfigured();
+      setState(() => _isLoading = false);
+      return;
+    }
+
     final result = await _getConversionMetricsUseCase.call(
       GetConversionMetricsParams(
-        microfinancieraId: 'mf_demo_001',
+        microfinancieraId: microfinancieraId,
         dateFrom: _startDate,
         dateTo: _endDate,
       ),
@@ -510,9 +548,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _isLoading = true;
     });
 
+    final microfinancieraId = _currentMicrofinancieraId();
+    if (microfinancieraId == null || microfinancieraId.isEmpty) {
+      _assertTenantConfigured();
+      setState(() => _isLoading = false);
+      return;
+    }
+
     final result = await _debugApplicationsCountUseCase.call(
       DebugApplicationsCountParams(
-        microfinancieraId: 'mf_demo_001',
+        microfinancieraId: microfinancieraId,
       ),
     );
 

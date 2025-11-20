@@ -1,22 +1,24 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/cart_item.dart';
-import '../models/payment_card.dart';
-import '../services/cart_service.dart';
-import '../services/payment_card_service.dart';
-import '../presentation/utils/product_colors.dart';
-import '../presentation/bloc/card/card_bloc.dart';
-import '../presentation/bloc/card/card_state.dart';
-import '../presentation/bloc/card/card_event.dart';
-import '../presentation/bloc/auth/auth_bloc.dart';
-import '../presentation/bloc/auth/auth_state.dart';
-import '../presentation/bloc/profile/profile_bloc.dart';
-import '../presentation/bloc/transaction/transaction_bloc.dart';
-import '../presentation/screens/payment_success_screen.dart';
-import '../presentation/screens/payment_processing_screen.dart';
-import '../data/datasources/transaction_datasource.dart';
+
+import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/data/datasources/transaction_datasource.dart';
+import 'package:mobile/presentation/bloc/auth/auth_bloc.dart';
+import 'package:mobile/presentation/bloc/auth/auth_state.dart';
+import 'package:mobile/presentation/bloc/card/card_bloc.dart';
+import 'package:mobile/presentation/bloc/card/card_event.dart';
+import 'package:mobile/presentation/bloc/card/card_state.dart';
+import 'package:mobile/presentation/bloc/profile/profile_bloc.dart';
+import 'package:mobile/presentation/bloc/transaction/transaction_bloc.dart';
+import 'package:mobile/presentation/models/cart_item.dart';
+import 'package:mobile/presentation/models/payment_card.dart';
+import 'package:mobile/presentation/screens/payment_processing_screen.dart';
+import 'package:mobile/presentation/screens/payment_success_screen.dart';
+import 'package:mobile/presentation/services/cart_service.dart';
+import 'package:mobile/presentation/services/payment_card_service.dart';
+import 'package:mobile/presentation/utils/product_colors.dart';
 
 class CartBottomSheet extends StatefulWidget {
   final CartService cartService;
@@ -49,6 +51,7 @@ class _CartBottomSheetState extends State<CartBottomSheet> {
       // Obtener datos del usuario autenticado
       final authState = context.read<AuthBloc>().state;
       final profileState = context.read<ProfileBloc>().state;
+      final tenantController = context.read<TenantController>();
 
       if (authState is! AuthAuthenticated) {
         if (mounted) {
@@ -64,7 +67,20 @@ class _CartBottomSheetState extends State<CartBottomSheet> {
 
       final userId = authState.user.uid;
       final microfinancieraId =
-          profileState.profile?.microfinancieraId ?? 'mf_demo_001';
+          profileState.profile?.microfinancieraId ?? tenantController.tenantId;
+
+      if (microfinancieraId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No se ha seleccionado una microfinanciera. Inicia sesión nuevamente.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
 
       // Load user cards from CardBloc
       final cardBloc = context.read<CardBloc>();
@@ -879,15 +895,25 @@ class _CartBottomSheetState extends State<CartBottomSheet> {
       return;
     }
 
+    final tenantController = context.read<TenantController>();
     String microfinancieraId;
     String accountId;
     String branchId;
 
     final profile = profileState.profile;
-    if (profile != null) {
-      microfinancieraId = profile.microfinancieraId ?? 'default_mf';
-    } else {
-      microfinancieraId = 'default_mf';
+    microfinancieraId =
+        profile?.microfinancieraId ?? tenantController.tenantId ?? '';
+
+    if (microfinancieraId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se encontró microfinanciera activa. Inicia sesión nuevamente.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
 
     // Obtener el accountId de la tarjeta seleccionada

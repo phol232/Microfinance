@@ -5,7 +5,6 @@ import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../main_screen.dart';
 import 'login_page.dart';
-import 'pending_approval_page.dart';
 import 'unauthorized_access_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
@@ -22,12 +21,8 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (state is AuthAuthenticated) {
+        if (state is AuthAuthenticated || state is AuthPending) {
           return const MainScreen();
-        }
-
-        if (state is AuthPending) {
-          return PendingApprovalPage(user: state.user, message: state.message);
         }
 
         if (state is AuthUnauthorized) {

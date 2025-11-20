@@ -3,13 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../bloc/profile/profile_bloc.dart';
-import '../../bloc/profile/profile_state.dart';
 import '../../bloc/transaction/transaction_bloc.dart';
 import '../../bloc/card/card_bloc.dart';
-import '../../bloc/card/card_event.dart';
 import '../../utils/product_colors.dart';
 import '../loan_schedule_screen.dart';
+import '../../widgets/chatbot/chatbot_launcher.dart';
 import '../../../data/repositories/transaction_repository_impl.dart';
 import '../../../data/datasources/transaction_datasource.dart';
 import '../../../data/repositories/card_repository_impl.dart';
@@ -22,8 +22,8 @@ import '../../../domain/usecases/card/get_user_cards_usecase.dart';
 import '../../../domain/usecases/card/request_card_usecase.dart';
 import '../../../domain/usecases/card/get_cards_by_account_usecase.dart';
 import '../../../domain/usecases/transaction/get_account_balance_usecase.dart';
-import '../../../services/payment_card_service.dart';
-import '../../../services/transaction_service.dart';
+import 'package:mobile/core/services/transaction_service.dart';
+import 'package:mobile/core/tenant/tenant_controller.dart';
 
 class LoansScreen extends StatefulWidget {
   const LoansScreen({Key? key}) : super(key: key);
@@ -35,11 +35,10 @@ class LoansScreen extends StatefulWidget {
 class _LoansScreenState extends State<LoansScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _microfinancieraIdFallback = 'mf_demo_001';
-
-  String _resolveMicrofinancieraId(BuildContext context) {
+  String? _resolveMicrofinancieraId(BuildContext context) {
     final profile = context.read<ProfileBloc>().state.profile;
-    return profile?.microfinancieraId ?? _microfinancieraIdFallback;
+    final tenantId = context.read<TenantController>().tenantId;
+    return profile?.microfinancieraId ?? tenantId;
   }
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
@@ -53,13 +52,14 @@ class _LoansScreenState extends State<LoansScreen> {
   Stream<QuerySnapshot> _getLoansStream(BuildContext context) {
     final microId = _resolveMicrofinancieraId(context);
     final uid = _auth.currentUser?.uid;
-    if (uid == null || microId.isEmpty) {
+    if (uid == null || microId == null || microId.isEmpty) {
       return const Stream.empty();
     }
+    final tenantId = microId!;
     try {
       return _firestore
           .collection('microfinancieras')
-          .doc(microId)
+          .doc(tenantId)
           .collection('loanApplications')
           .where('status', isEqualTo: 'disbursed')
           .where('userId', isEqualTo: uid)
@@ -120,6 +120,18 @@ class _LoansScreenState extends State<LoansScreen> {
       cardDataSource: CardDataSource(),
     );
 
+    final microfinancieraId = _resolveMicrofinancieraId(context);
+    if (microfinancieraId == null || microfinancieraId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se encontró microfinanciera activa. Intenta nuevamente.',
+          ),
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -148,7 +160,7 @@ class _LoansScreenState extends State<LoansScreen> {
           child: LoanScheduleScreen(
             loanId: loanId,
             loanData: loanData,
-            microfinancieraId: _resolveMicrofinancieraId(context),
+            microfinancieraId: microfinancieraId,
           ),
         ),
       ),
@@ -296,6 +308,9 @@ class _LoansScreenState extends State<LoansScreen> {
               final status = data['status'] ?? 'disbursed';
               final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
               final microId = _resolveMicrofinancieraId(context);
+              if (microId == null || microId.isEmpty) {
+                return const SizedBox.shrink();
+              }
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -638,6 +653,9 @@ class _LoansScreenState extends State<LoansScreen> {
           );
         },
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton:
+          const ChatBotLauncherButton(heroTag: 'chatbot-loans'),
     );
   }
 

@@ -1,11 +1,12 @@
 import 'package:fpdart/fpdart.dart';
-import '../domain/entities/transaction.dart';
-import '../domain/core/error/failures.dart';
-import '../domain/usecases/transaction/process_payment_usecase.dart';
-import '../domain/usecases/transaction/process_disbursement_usecase.dart';
-import '../domain/usecases/transaction/get_transaction_history_usecase.dart';
-import '../domain/usecases/transaction/get_card_transactions_usecase.dart';
-import '../domain/usecases/transaction/get_account_balance_usecase.dart';
+
+import 'package:mobile/domain/core/error/failures.dart';
+import 'package:mobile/domain/entities/transaction.dart';
+import 'package:mobile/domain/usecases/transaction/get_account_balance_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/get_card_transactions_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/get_transaction_history_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/process_disbursement_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/process_payment_usecase.dart';
 
 class TransactionService {
   final ProcessPaymentUseCase _processPaymentUseCase;

@@ -1,14 +1,15 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../utils/product_colors.dart';
-import '../../services/cart_service.dart';
-import '../../services/payment_card_service.dart';
-import '../../models/cart_item.dart';
-import '../../widgets/cart_bottom_sheet.dart';
-import '../bloc/transaction/transaction_bloc.dart';
-import '../bloc/card/card_bloc.dart';
+import 'package:intl/intl.dart';
+
+import 'package:mobile/presentation/bloc/card/card_bloc.dart';
+import 'package:mobile/presentation/bloc/transaction/transaction_bloc.dart';
+import 'package:mobile/presentation/models/cart_item.dart';
+import 'package:mobile/presentation/services/cart_service.dart';
+import 'package:mobile/presentation/services/payment_card_service.dart';
+import 'package:mobile/presentation/utils/product_colors.dart';
+import 'package:mobile/presentation/widgets/cart_bottom_sheet.dart';
 
 class LoanScheduleScreen extends StatefulWidget {
   final String loanId;

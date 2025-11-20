@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mobile/core/tenant/tenant_controller.dart';
 import '../../bloc/intake_request/intake_request_bloc.dart';
 import '../../bloc/intake_request/intake_request_event.dart';
 import '../../bloc/intake_request/intake_request_state.dart';
@@ -15,7 +16,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _microfinancieraId = 'mf_demo_001';
+
+  String? _tenantId() => context.read<TenantController>().tenantId;
 
   @override
   void initState() {
@@ -28,12 +30,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<List<Map<String, dynamic>>> _getDailyDisbursements() async {
     final today = DateTime.now();
     final fiveDaysAgo = DateTime(today.year, today.month, today.day - 4);
+    final tenantId = _tenantId();
 
     try {
       // Consulta simple sin índices compuestos
+      if (tenantId == null || tenantId.isEmpty) {
+        return _getSimulatedDailyDisbursements();
+      }
+
       final snapshot = await _firestore
           .collection('microfinancieras')
-          .doc(_microfinancieraId)
+          .doc(tenantId)
           .collection('loanApplications')
           .where('status', isEqualTo: 'disbursed')
           .get();

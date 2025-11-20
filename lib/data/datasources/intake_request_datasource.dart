@@ -1,20 +1,33 @@
 import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'package:mobile/core/tenant/tenant_resolver.dart';
 import '../../domain/entities/loan_application.dart';
 
 class IntakeRequestDataSource {
   final FirebaseFirestore _firestore;
-  final String microfinancieraId;
+  final TenantResolver _tenantResolver;
 
   IntakeRequestDataSource({
-    required this.microfinancieraId,
+    required TenantResolver tenantResolver,
     FirebaseFirestore? firestore,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  })  : _tenantResolver = tenantResolver,
+        _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _collection => _firestore
-      .collection('microfinancieras')
-      .doc(microfinancieraId)
-      .collection('loanApplications');
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _firestore.collection('microfinancieras').doc(_requireTenantId()).collection(
+            'loanApplications',
+          );
+
+  String _requireTenantId() {
+    final tenantId = _tenantResolver.tenantId;
+    if (tenantId == null || tenantId.isEmpty) {
+      throw StateError(
+        'Tenant not configured. Selecciona una microfinanciera antes de continuar.',
+      );
+    }
+    return tenantId;
+  }
 
   Future<List<LoanApplication>> getAll() async {
     try {

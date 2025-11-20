@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/payment_card.dart';
-import '../domain/entities/card.dart' as domain;
+
+import 'package:mobile/domain/entities/card.dart' as domain;
+import 'package:mobile/presentation/models/payment_card.dart';
 
 class PaymentCardService extends ChangeNotifier {
   static const String _cardsKey = 'payment_cards';

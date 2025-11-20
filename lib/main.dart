@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'core/config/firebase_config.dart';
 import 'core/env/env_loader.dart';
+import 'core/tenant/tenant_controller.dart';
 import 'data/datasources/firebase_auth_datasource.dart';
 import 'data/datasources/intake_request_datasource.dart';
 import 'data/datasources/loan_application_datasource.dart';
@@ -56,6 +57,7 @@ import 'presentation/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final tenantController = TenantController();
   try {
     await EnvLoader.ensureInitialized();
     await Firebase.initializeApp(options: FirebaseConfig.currentPlatform);
@@ -66,18 +68,28 @@ Future<void> main() async {
     debugPrint('❌ ERROR CRÍTICO: Error inicializando Firebase: $e');
   }
 
-  runApp(const MyApp());
+  await tenantController.initialize();
+
+  runApp(MyApp(tenantController: tenantController));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.tenantController});
+
+  final TenantController tenantController;
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider<TenantController>.value(
+          value: tenantController,
+        ),
+      ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
+          final tenantManager = context.read<TenantController>();
           return MultiRepositoryProvider(
             providers: [
               RepositoryProvider<AuthRepository>(
@@ -86,7 +98,7 @@ class MyApp extends StatelessWidget {
               ),
               RepositoryProvider<IntakeRequestRepository>(
                 create: (_) => IntakeRequestRepositoryImpl(
-                  IntakeRequestDataSource(microfinancieraId: 'mf_demo_001'),
+                  IntakeRequestDataSource(tenantResolver: tenantManager),
                 ),
               ),
               RepositoryProvider<LoanApplicationRepository>(
@@ -96,7 +108,9 @@ class MyApp extends StatelessWidget {
               ),
               RepositoryProvider<AccountRepository>(
                 create: (_) => AccountRepositoryImpl(
-                  accountDataSource: AccountDataSource(),
+                  accountDataSource: AccountDataSource(
+                    tenantResolver: tenantManager,
+                  ),
                 ),
               ),
               RepositoryProvider<CardRepository>(
@@ -150,6 +164,7 @@ class MyApp extends StatelessWidget {
                           googleSignInUseCase: googleSignInUseCase,
                           anonymousSignInUseCase: anonymousSignInUseCase,
                           validateUserAccessUseCase: validateUserAccessUseCase,
+                          tenantController: tenantManager,
                         )..add(const AuthCheckRequested());
                       },
                     ),

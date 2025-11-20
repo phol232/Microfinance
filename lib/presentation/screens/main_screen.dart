@@ -17,7 +17,6 @@ import 'main/applications_screen.dart';
 import 'main/accounts_screen.dart';
 import 'main/loans_screen.dart';
 import 'settings_screen.dart';
-import 'pending_approval_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -85,12 +84,8 @@ class _MainScreenState extends State<MainScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Si el usuario está en estado pendiente, mostrar pantalla de aprobación
-    if (authState is AuthPending) {
-      return const PendingApprovalScreen();
-    }
-
-    if (authState is AuthAuthenticated && profileState.profile != null) {
+    if ((authState is AuthAuthenticated || authState is AuthPending) &&
+        profileState.profile != null) {
       final profile = profileState.profile!;
       if (profile.primaryRoleId != null &&
           profile.primaryRoleId != 'analyst' &&
@@ -105,11 +100,10 @@ class _MainScreenState extends State<MainScreen> {
       }
 
       // Verificar status en tiempo real
-      if (profile.status == 'pending') {
-        return const PendingApprovalScreen();
-      }
-
-      if (profile.status != null && profile.status != 'approved') {
+      if (profile.status != null &&
+          profile.status != 'approved' &&
+          profile.status != 'pending' &&
+          profile.status != 'active') {
         // Cerrar sesión automáticamente si el status cambió
         WidgetsBinding.instance.addPostFrameCallback((_) {
           debugPrint(
@@ -123,11 +117,13 @@ class _MainScreenState extends State<MainScreen> {
 
     final AppUser? user = authState is AuthAuthenticated
         ? authState.user
-        : null;
+        : authState is AuthPending
+            ? authState.user
+            : null;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthAuthenticated) {
+        if (state is AuthAuthenticated || state is AuthPending) {
           _requestProfile();
         }
       },

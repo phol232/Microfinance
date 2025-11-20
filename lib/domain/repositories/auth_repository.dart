@@ -22,14 +22,14 @@ abstract class AuthRepository {
     required String dni,
     required String phone,
     required String microfinancieraId,
-    List<String> roles = const ['analyst'],
+    List<String> roles = const ['customer'],
   });
 
   Future<List<Microfinanciera>> getActiveMicrofinancieras();
 
   Future<AppUser?> signInWithGoogle({
     required String microfinancieraId,
-    List<String> roles = const ['analyst'],
+    List<String> roles = const ['customer'],
   });
 
   Future<AppUser?> signInWithFacebook();

@@ -1,6 +1,6 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
-import '../domain/entities/loan_application.dart';
+
+import 'package:mobile/domain/entities/loan_application.dart';
 
 enum LocationStatus {
   enabled,

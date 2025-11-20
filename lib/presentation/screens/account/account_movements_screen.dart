@@ -11,7 +11,7 @@ import '../../../domain/usecases/transaction/get_transaction_history_usecase.dar
 import '../../../domain/usecases/transaction/get_card_transactions_usecase.dart';
 import '../../../domain/usecases/transaction/process_disbursement_usecase.dart';
 import '../../../domain/usecases/transaction/process_payment_usecase.dart';
-import '../../../services/transaction_service.dart';
+import 'package:mobile/core/services/transaction_service.dart';
 import '../../bloc/transaction/transaction_bloc.dart';
 
 class AccountMovementsScreen extends StatefulWidget {

@@ -95,13 +95,8 @@ class _RegisterPageState extends State<RegisterPage> {
           }
           _showErrorSnackBar(state.message);
         } else if (state is AuthRegistrationSuccess ||
-            state is AuthAuthenticated) {
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          }
-        } else if (state is AuthPending) {
-          // El AuthWrapper se encargará de mostrar la página de pending
-          // No necesitamos hacer nada aquí, solo asegurar que no navegamos
+            state is AuthAuthenticated ||
+            state is AuthPending) {
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).popUntil((route) => route.isFirst);
           }

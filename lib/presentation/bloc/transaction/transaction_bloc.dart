@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/transaction.dart';
-import '../../../services/transaction_service.dart';
+import 'package:mobile/core/services/transaction_service.dart';
 
 // Events
 abstract class TransactionEvent extends Equatable {

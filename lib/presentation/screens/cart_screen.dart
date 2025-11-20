@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import '../../services/cart_service.dart';
-import '../../models/cart_item.dart';
-import '../utils/product_colors.dart';
-import '../bloc/transaction/transaction_bloc.dart';
-import '../bloc/auth/auth_bloc.dart';
-import '../bloc/auth/auth_state.dart';
-import '../bloc/profile/profile_bloc.dart';
-import '../bloc/profile/profile_state.dart';
-import '../bloc/card/card_bloc.dart';
-import '../bloc/card/card_event.dart';
-import '../bloc/card/card_state.dart';
-import '../../services/transaction_service.dart';
-import '../../data/repositories/transaction_repository_impl.dart';
-import '../../data/datasources/transaction_datasource.dart';
-import '../../domain/usecases/transaction/process_payment_usecase.dart';
-import '../../domain/usecases/transaction/process_disbursement_usecase.dart';
-import '../../domain/usecases/transaction/get_transaction_history_usecase.dart';
-import '../../domain/usecases/transaction/get_card_transactions_usecase.dart';
-import '../../domain/usecases/transaction/get_account_balance_usecase.dart';
-import '../../domain/entities/card.dart' as domain;
+
+import 'package:mobile/core/services/transaction_service.dart';
+import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/data/datasources/transaction_datasource.dart';
+import 'package:mobile/data/repositories/transaction_repository_impl.dart';
+import 'package:mobile/domain/entities/card.dart' as domain;
+import 'package:mobile/domain/usecases/transaction/get_account_balance_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/get_card_transactions_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/get_transaction_history_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/process_disbursement_usecase.dart';
+import 'package:mobile/domain/usecases/transaction/process_payment_usecase.dart';
+import 'package:mobile/presentation/bloc/auth/auth_bloc.dart';
+import 'package:mobile/presentation/bloc/auth/auth_state.dart';
+import 'package:mobile/presentation/bloc/card/card_bloc.dart';
+import 'package:mobile/presentation/bloc/card/card_event.dart';
+import 'package:mobile/presentation/bloc/card/card_state.dart';
+import 'package:mobile/presentation/bloc/profile/profile_bloc.dart';
+import 'package:mobile/presentation/bloc/transaction/transaction_bloc.dart';
+import 'package:mobile/presentation/models/cart_item.dart';
+import 'package:mobile/presentation/services/cart_service.dart';
+import 'package:mobile/presentation/utils/product_colors.dart';
+
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -65,6 +67,7 @@ class _CartScreenState extends State<CartScreen> {
     final authState = context.read<AuthBloc>().state;
     final profileState = context.read<ProfileBloc>().state;
     final cardState = context.read<CardBloc>().state;
+    final tenantController = context.read<TenantController>();
 
     print('🔍 CartScreen: Current CardBloc state: ${cardState.runtimeType}');
 
@@ -76,7 +79,18 @@ class _CartScreenState extends State<CartScreen> {
 
     if (authState is AuthAuthenticated) {
       final microfinancieraId =
-          profileState.profile?.microfinancieraId ?? 'mf_demo_001';
+          profileState.profile?.microfinancieraId ?? tenantController.tenantId;
+
+      if (microfinancieraId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Selecciona una microfinanciera para cargar tus tarjetas.',
+            ),
+          ),
+        );
+        return;
+      }
       print('🔍 CartScreen: Loading cards for user: ${authState.user.uid}');
       context.read<CardBloc>().add(
         CardLoadUserCards(authState.user.uid, microfinancieraId),
@@ -449,15 +463,25 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
+    final tenantController = context.read<TenantController>();
     String microfinancieraId;
     String accountId;
     String branchId;
 
     final profile = profileState.profile;
-    if (profile != null) {
-      microfinancieraId = profile.microfinancieraId ?? 'default_mf';
-    } else {
-      microfinancieraId = 'default_mf';
+    microfinancieraId =
+        profile?.microfinancieraId ?? tenantController.tenantId ?? '';
+
+    if (microfinancieraId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se encontró microfinanciera activa. Inicia sesión nuevamente.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
 
     // Obtener el accountId de la tarjeta seleccionada

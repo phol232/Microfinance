@@ -4,7 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../domain/entities/account.dart';
 import '../../../domain/entities/card.dart' as domain;
-import '../../../services/biometric_auth_service.dart';
+import 'package:mobile/core/services/biometric_auth_service.dart';
+import 'package:mobile/core/tenant/tenant_controller.dart';
 import '../../bloc/account/account_bloc.dart';
 import '../../bloc/account/account_event.dart';
 import '../../bloc/account/account_state.dart';
@@ -17,6 +18,7 @@ import '../account_details_screen.dart';
 import '../account/account_movements_screen.dart';
 import '../card_info_screen.dart';
 import '../card/card_request_screen.dart';
+import '../../widgets/chatbot/chatbot_launcher.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -53,11 +55,37 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
+  String? _resolveMicrofinancieraId() {
+    final profileState = context.read<ProfileBloc>().state;
+    final tenantId = context.read<TenantController>().tenantId;
+    return profileState.profile?.microfinancieraId ?? tenantId;
+  }
+
+  bool _ensureTenantAvailable() {
+    final microId = _resolveMicrofinancieraId();
+    if (microId == null || microId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se ha seleccionado una microfinanciera. Inicia sesión nuevamente.',
+            ),
+          ),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
   void _loadUserCards() {
     final uid = _auth.currentUser?.uid;
     if (uid != null) {
-      final profileState = context.read<ProfileBloc>().state;
-      final microfinancieraId = profileState.profile?.microfinancieraId ?? 'mf_demo_001';
+      final microfinancieraId = _resolveMicrofinancieraId();
+      if (microfinancieraId == null) {
+        _ensureTenantAvailable();
+        return;
+      }
       context.read<CardBloc>().add(CardLoadUserCards(uid, microfinancieraId));
     }
   }
@@ -97,8 +125,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     
-    final profileState = context.read<ProfileBloc>().state;
-    final microfinancieraId = profileState.profile?.microfinancieraId ?? 'mf_demo_001';
+    final microfinancieraId = _resolveMicrofinancieraId();
+    if (microfinancieraId == null) {
+      _ensureTenantAvailable();
+      return;
+    }
     
     // Obtener las cuentas existentes del usuario
     final accountState = context.read<AccountBloc>().state;
@@ -131,9 +162,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
       userAccounts = accountState.accounts;
     }
 
-    final profileState = context.read<ProfileBloc>().state;
-    final microfinancieraId =
-        profileState.profile?.microfinancieraId ?? 'mf_demo_001';
+    final microfinancieraId = _resolveMicrofinancieraId();
+    if (microfinancieraId == null) {
+      _ensureTenantAvailable();
+      return;
+    }
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -338,12 +371,22 @@ class _AccountsScreenState extends State<AccountsScreen> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateAccountModal,
-        icon: const Icon(Icons.add),
-        label: const Text('Crear cuenta'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const ChatBotLauncherButton(heroTag: 'chatbot-accounts'),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'create-account-fab',
+            onPressed: _showCreateAccountModal,
+            icon: const Icon(Icons.add),
+            label: const Text('Crear cuenta'),
+            backgroundColor: Theme.of(context).primaryColor,
+            foregroundColor: Colors.white,
+          ),
+        ],
       ),
     );
   }

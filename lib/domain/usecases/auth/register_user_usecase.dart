@@ -148,7 +148,7 @@ class RegisterParams {
     required this.dni,
     required this.phone,
     required this.microfinancieraId,
-    this.roles = const ['analyst'],
+    this.roles = const ['customer'],
   });
 
   @override

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:mobile/core/tenant/tenant_controller.dart';
 import '../../../domain/entities/app_user.dart';
 import '../../../domain/entities/user_profile.dart';
 import '../../../domain/repositories/auth_repository.dart';
@@ -29,6 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required GoogleSignInUseCase googleSignInUseCase,
     required AnonymousSignInUseCase anonymousSignInUseCase,
     required ValidateUserAccessUseCase validateUserAccessUseCase,
+    required TenantController tenantController,
   }) : _authRepository = authRepository,
        _loginUserUseCase = loginUserUseCase,
        _registerUserUseCase = registerUserUseCase,
@@ -38,6 +40,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
        _googleSignInUseCase = googleSignInUseCase,
        _anonymousSignInUseCase = anonymousSignInUseCase,
        _validateUserAccessUseCase = validateUserAccessUseCase,
+       _tenantController = tenantController,
        super(const AuthInitial()) {
     on<AuthCheckRequested>(_onAuthCheckRequested);
     on<AuthLoginRequested>(_onAuthLoginRequested);
@@ -54,6 +57,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
 
+  Future<void> _syncTenantContext(
+    UserProfile? profile, {
+    String? fallbackTenantId,
+  }) async {
+    final tenantId = profile?.microfinancieraId ?? fallbackTenantId;
+    if (tenantId == null || tenantId.isEmpty) {
+      return;
+    }
+
+    await _tenantController.setTenantById(
+      tenantId,
+      name: profile?.microfinancieraId,
+    );
+  }
+
   final AuthRepository _authRepository;
   final LoginUserUseCase _loginUserUseCase;
   final RegisterUserUseCase _registerUserUseCase;
@@ -63,6 +81,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final GoogleSignInUseCase _googleSignInUseCase;
   final AnonymousSignInUseCase _anonymousSignInUseCase;
   final ValidateUserAccessUseCase _validateUserAccessUseCase;
+  final TenantController _tenantController;
   late final StreamSubscription<AppUser?> _authStateSubscription;
 
   Future<void> _onAuthCheckRequested(
@@ -138,6 +157,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           appUser,
           emit,
           cachedProfile: loginResult.profile,
+          fallbackTenantId:
+              loginResult.profile?.microfinancieraId ?? event.microfinancieraId,
         );
       },
     );
@@ -171,7 +192,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       ),
       (user) async {
         // Verificar el estado del usuario después del registro
-        await _checkUserStatusAndEmit(user, emit);
+        await _checkUserStatusAndEmit(
+          user,
+          emit,
+          fallbackTenantId: event.microfinancieraId,
+        );
       },
     );
   }
@@ -198,7 +223,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       ),
       (user) async {
         // Verificar el estado del usuario después del login con Google
-        await _checkUserStatusAndEmit(user, emit);
+        await _checkUserStatusAndEmit(
+          user,
+          emit,
+          fallbackTenantId: event.microfinancieraId,
+        );
       },
     );
   }
@@ -209,8 +238,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AppUser user,
     Emitter<AuthState> emit, {
     UserProfile? cachedProfile,
+    String? fallbackTenantId,
   }) async {
-    await _validateUserAccess(user, emit, cachedProfile: cachedProfile);
+    await _validateUserAccess(
+      user,
+      emit,
+      cachedProfile: cachedProfile,
+      fallbackTenantId: fallbackTenantId,
+    );
   }
 
   /// Valida el acceso del usuario basado en rol y status usando el UseCase
@@ -219,6 +254,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AppUser user,
     Emitter<AuthState> emit, {
     UserProfile? cachedProfile,
+    String? fallbackTenantId,
   }) async {
     final params = ValidateUserAccessParams(
       user: user,
@@ -226,9 +262,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
     final result = await _validateUserAccessUseCase(params);
 
-    result.fold(
+    await result.fold(
       // En caso de Failure (error técnico), denegar acceso por seguridad
-      (failure) {
+      (failure) async {
         debugPrint('❌ RBAC: Error al validar acceso: ${failure.message}');
         emit(
           AuthUnauthorized(
@@ -239,17 +275,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
       },
       // En caso de éxito, procesar el resultado de la validación
-      (validation) {
-        if (validation.isAuthorized) {
+      (validation) async {
+        await _syncTenantContext(
+          validation.profile ?? cachedProfile,
+          fallbackTenantId: fallbackTenantId,
+        );
+        if (validation.isAuthorized || validation.isPending) {
           debugPrint(
             '✅ RBAC: Usuario ${user.uid} autorizado (analyst + approved)',
           );
           emit(AuthAuthenticated(user: user));
-        } else if (validation.isPending) {
-          debugPrint(
-            '⏳ RBAC: Usuario ${user.uid} está pendiente de aprobación',
-          );
-          emit(AuthPending(user: user, message: validation.message ?? ''));
         } else if (validation.isRejected) {
           debugPrint('❌ RBAC: Usuario ${user.uid} fue rechazado');
           emit(
@@ -317,14 +352,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     final result = await _logoutUserUseCase();
 
-    result.fold(
-      (failure) => emit(
+    await result.fold(
+      (failure) async => emit(
         AuthError(
           message: _getFailureMessage(failure),
           errorCode: 'logout_error',
         ),
       ),
-      (_) => emit(const AuthUnauthenticated()),
+      (_) async {
+        await _tenantController.clearTenant();
+        emit(const AuthUnauthenticated());
+      },
     );
   }
 
@@ -337,6 +375,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Verificar el estado del usuario antes de emitir AuthAuthenticated
       await _checkUserStatusAndEmit(user, emit);
     } else {
+      await _tenantController.clearTenant();
       emit(const AuthUnauthenticated());
     }
   }

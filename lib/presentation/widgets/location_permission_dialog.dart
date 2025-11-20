@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
-import '../services/location_service.dart';
-import '../domain/entities/loan_application.dart';
+
+import 'package:flutter/material.dart';
+import 'package:mobile/core/services/location_service.dart';
+import 'package:mobile/domain/entities/loan_application.dart';
 
 class LocationPermissionDialog extends StatefulWidget {
   final String message;

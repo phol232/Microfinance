@@ -215,7 +215,7 @@ class FirebaseAuthDataSource {
     required String dni,
     required String phone,
     required String microfinancieraId,
-    List<String> roles = const ['analyst'],
+    List<String> roles = const ['customer'],
   }) async {
     try {
       final emailExists = await checkEmailExists(email);
@@ -311,7 +311,7 @@ class FirebaseAuthDataSource {
         'linkedProviders': ['password'],
         'roles': normalizedRoles,
         'primaryRoleId': normalizedRoles.first,
-        'status': 'pending',
+        'status': 'active',
         'createdAt': serverTimestamp,
         'lastLoginAt': serverTimestamp,
         'phone': trimmedPhone.isNotEmpty ? trimmedPhone : null,
@@ -412,7 +412,7 @@ class FirebaseAuthDataSource {
 
   Future<UserCredential?> signInWithGoogle({
     required String microfinancieraId,
-    List<String> roles = const ['analyst'],
+    List<String> roles = const ['customer'],
   }) async {
     try {
       if (kIsWeb) {
@@ -556,11 +556,6 @@ class FirebaseAuthDataSource {
       );
     }
 
-    final newRoles = await _resolveRolesForMembership(
-      microfinancieraRef: microfinancieraRef,
-      requestedRoles: roles,
-    );
-
     final usersCollection = microfinancieraRef.collection('users');
     final membershipRef = usersCollection.doc(user.uid);
     final membershipSnapshot = await membershipRef.get();
@@ -571,6 +566,13 @@ class FirebaseAuthDataSource {
     final providerKey = provider.trim().isNotEmpty ? provider.trim() : 'google';
 
     if (!membershipSnapshot.exists) {
+      final resolvedRoles = await _resolveRolesForMembership(
+        microfinancieraRef: microfinancieraRef,
+        requestedRoles: roles,
+      );
+      final roleSet =
+          resolvedRoles.isNotEmpty ? resolvedRoles : const ['customer'];
+
       final membershipData = <String, dynamic>{
         'userId': user.uid,
         'mfId': microfinancieraId,
@@ -581,9 +583,9 @@ class FirebaseAuthDataSource {
             : null,
         'photoUrl': user.photoURL,
         'linkedProviders': [providerKey],
-        'roles': newRoles,
-        'primaryRoleId': newRoles.first,
-        'status': 'pending',
+        'roles': roleSet,
+        'primaryRoleId': roleSet.first,
+        'status': 'active',
         'createdAt': now,
         'lastLoginAt': now,
         'phone': user.phoneNumber,
@@ -594,7 +596,7 @@ class FirebaseAuthDataSource {
       await _ensureCustomerRecordForUser(
         microfinancieraRef: microfinancieraRef,
         user: user,
-        roles: newRoles,
+        roles: roleSet,
         displayName: trimmedDisplayName ?? user.displayName,
         email: trimmedEmail ?? user.email,
         phone: user.phoneNumber,
@@ -603,7 +605,7 @@ class FirebaseAuthDataSource {
       await _ensureWorkerRecordForUser(
         microfinancieraRef: microfinancieraRef,
         user: user,
-        roles: newRoles,
+        roles: roleSet,
         displayName: trimmedDisplayName ?? user.displayName,
         email: trimmedEmail ?? user.email,
         phone: user.phoneNumber,
@@ -624,7 +626,7 @@ class FirebaseAuthDataSource {
       //   print('Error enviando notificación de registro Google: $e');
       // }
 
-      return newRoles;
+      return roleSet;
     }
 
     final membershipData = membershipSnapshot.data() ?? <String, dynamic>{};
@@ -638,11 +640,7 @@ class FirebaseAuthDataSource {
 
     final mergedRolesFinal = existingRolesList.isNotEmpty
         ? existingRolesList
-        : List<String>.from(newRoles);
-
-    if (mergedRolesFinal.isEmpty) {
-      mergedRolesFinal.add('analyst');
-    }
+        : const ['customer'];
 
     final providerSet =
         (membershipData['linkedProviders'] as List<dynamic>? ?? [])
@@ -677,9 +675,6 @@ class FirebaseAuthDataSource {
       'userId': user.uid,
       'mfId': microfinancieraId,
       'linkedProviders': providerSet.toList(),
-      'roles': mergedRolesFinal,
-      'primaryRoleId': resolvedPrimary,
-      'status': resolvedStatus,
       'lastLoginAt': now,
       'updatedAt': now,
       if (resolvedEmail != null && resolvedEmail.isNotEmpty)
@@ -691,6 +686,16 @@ class FirebaseAuthDataSource {
       if (resolvedDni != null && resolvedDni.trim().isNotEmpty)
         'dni': resolvedDni.trim(),
     };
+
+    if (existingRolesList.isEmpty) {
+      updates['roles'] = mergedRolesFinal;
+    }
+    if (existingPrimary == null || existingPrimary.isEmpty) {
+      updates['primaryRoleId'] = resolvedPrimary;
+    }
+    if (existingStatus == null || existingStatus.isEmpty) {
+      updates['status'] = resolvedStatus;
+    }
 
     final photoUrl = user.photoURL;
     if (photoUrl != null && photoUrl.isNotEmpty) {
@@ -730,7 +735,7 @@ class FirebaseAuthDataSource {
         .toList();
 
     final desiredRoles = trimmedRoles.isEmpty
-        ? <String>['analyst']
+        ? <String>['customer']
         : trimmedRoles.toSet().toList();
 
     final resolvedRoles = <String>[];
@@ -752,8 +757,8 @@ class FirebaseAuthDataSource {
     final defaultsData = defaultsDoc.data() ?? <String, dynamic>{};
 
     final fallbackRoleIds = <String?>[
-      defaultsData['defaultAnalystRoleId'] as String?,
       defaultsData['defaultCustomerRoleId'] as String?,
+      defaultsData['defaultAnalystRoleId'] as String?,
     ];
 
     for (final fallbackRoleId in fallbackRoleIds) {
@@ -765,17 +770,17 @@ class FirebaseAuthDataSource {
       }
     }
 
-    final analystSnapshot = await rolesCollection.doc('analyst').get();
-    if (analystSnapshot.exists) {
-      return ['analyst'];
-    }
-
     final customerSnapshot = await rolesCollection.doc('customer').get();
     if (customerSnapshot.exists) {
       return ['customer'];
     }
 
-    return desiredRoles.isNotEmpty ? desiredRoles : <String>['analyst'];
+    final analystSnapshot = await rolesCollection.doc('analyst').get();
+    if (analystSnapshot.exists) {
+      return ['analyst'];
+    }
+
+    return desiredRoles.isNotEmpty ? desiredRoles : <String>['customer'];
   }
 
   Future<void> _ensureCustomerRecordForUser({

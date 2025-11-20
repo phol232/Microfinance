@@ -30,6 +30,7 @@ class ValidateUserAccessUseCase
             reason: 'missing_profile',
             message:
                 'No se pudo verificar tu perfil. Contacta al administrador.',
+            profile: profile,
           ),
         );
       }
@@ -43,6 +44,7 @@ class ValidateUserAccessUseCase
             reason: 'missing_role',
             message:
                 'Tu cuenta no tiene un rol asignado. Contacta al administrador.',
+            profile: profile,
           ),
         );
       }
@@ -54,6 +56,7 @@ class ValidateUserAccessUseCase
             user: params.user,
             reason: 'invalid_role',
             message: 'Tu rol no tiene acceso a esta app móvil.',
+            profile: profile,
           ),
         );
       }
@@ -61,11 +64,11 @@ class ValidateUserAccessUseCase
       // Validar status
       final status = profile.status ?? 'pending';
       if (status == 'pending') {
+        // Permitir acceso limitado mostrando el dashboard principal.
         return Right(
-          UserAccessValidation.pending(
+          UserAccessValidation.authorized(
             user: params.user,
-            message:
-                'Tu cuenta está pendiente de aprobación. Te notificaremos cuando sea aprobada.',
+            profile: profile,
           ),
         );
       }
@@ -75,22 +78,29 @@ class ValidateUserAccessUseCase
           UserAccessValidation.rejected(
             user: params.user,
             message: 'Tu cuenta ha sido rechazada. Contacta al administrador.',
+            profile: profile,
           ),
         );
       }
 
-      if (status != 'approved') {
+      if (status != 'approved' && status != 'active') {
         return Right(
           UserAccessValidation.unauthorized(
             user: params.user,
             reason: 'invalid_status',
             message: 'Tu cuenta no está aprobada. Contacta al administrador.',
+            profile: profile,
           ),
         );
       }
 
       // Usuario válido: analyst + approved
-      return Right(UserAccessValidation.authorized(user: params.user));
+      return Right(
+        UserAccessValidation.authorized(
+          user: params.user,
+          profile: profile,
+        ),
+      );
     } catch (e) {
       // En caso de error, denegar acceso por seguridad
       return Right(
@@ -98,6 +108,7 @@ class ValidateUserAccessUseCase
           user: params.user,
           reason: 'validation_error',
           message: 'Error al verificar permisos. Intenta nuevamente.',
+          profile: params.cachedProfile,
         ),
       );
     }
@@ -130,50 +141,65 @@ class UserAccessValidation {
   final AccessStatus status;
   final String? reason;
   final String? message;
+  final UserProfile? profile;
 
   const UserAccessValidation._({
     required this.user,
     required this.status,
     this.reason,
     this.message,
+    this.profile,
   });
 
-  factory UserAccessValidation.authorized({required AppUser user}) {
-    return UserAccessValidation._(user: user, status: AccessStatus.authorized);
+  factory UserAccessValidation.authorized({
+    required AppUser user,
+    UserProfile? profile,
+  }) {
+    return UserAccessValidation._(
+      user: user,
+      status: AccessStatus.authorized,
+      profile: profile,
+    );
   }
 
   factory UserAccessValidation.unauthorized({
     required AppUser user,
     required String reason,
     required String message,
+    UserProfile? profile,
   }) {
     return UserAccessValidation._(
       user: user,
       status: AccessStatus.unauthorized,
       reason: reason,
       message: message,
+      profile: profile,
     );
   }
 
   factory UserAccessValidation.pending({
     required AppUser user,
     required String message,
+    UserProfile? profile,
   }) {
     return UserAccessValidation._(
       user: user,
       status: AccessStatus.pending,
       message: message,
+      profile: profile,
     );
   }
 
   factory UserAccessValidation.rejected({
     required AppUser user,
     required String message,
+    UserProfile? profile,
   }) {
     return UserAccessValidation._(
       user: user,
       status: AccessStatus.rejected,
       message: message,
+      profile: profile,
     );
   }
 
