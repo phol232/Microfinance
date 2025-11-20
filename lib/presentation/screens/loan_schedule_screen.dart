@@ -45,6 +45,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
   bool _isMultiSelectMode = false;
   Set<String> _selectedInstallments = {};
   String _searchQuery = '';
+  bool _shouldRefreshParent = false;
 
   late Future<List<Map<String, dynamic>>> _scheduleFuture;
 
@@ -206,12 +207,14 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
       }
     }
 
-    _exitMultiSelectMode(); 
+    _exitMultiSelectMode();
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$added cuota${added > 1 ? 's' : ''} agregada${added > 1 ? 's' : ''} al carrito'),
+        content: Text(
+          '$added cuota${added > 1 ? 's' : ''} agregada${added > 1 ? 's' : ''} al carrito',
+        ),
         backgroundColor: Colors.green,
         action: SnackBarAction(
           label: 'Ver Carrito',
@@ -260,549 +263,569 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
     return BlocListener<TransactionBloc, TransactionState>(
       listener: (context, state) {
         if (state is PaymentProcessed) {
+          _shouldRefreshParent = true;
           _refreshSchedule();
         }
       },
-      child: Scaffold(
-        backgroundColor: Colors.grey[50],
-        appBar: AppBar(
-          title: Text(
-            _isMultiSelectMode
-                ? '${_selectedInstallments.length} seleccionadas'
-                : 'Cronograma de Pagos',
+      child: WillPopScope(
+        onWillPop: () async {
+          Navigator.pop(context, _shouldRefreshParent);
+          return false;
+        },
+        child: Scaffold(
+          backgroundColor: Colors.grey[50],
+          appBar: AppBar(
+            title: Text(
+              _isMultiSelectMode
+                  ? '${_selectedInstallments.length} seleccionadas'
+                  : 'Cronograma de Pagos',
+            ),
+            backgroundColor: themeColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context, _shouldRefreshParent),
+            ),
+            actions: [
+              if (_isMultiSelectMode) ...[
+                IconButton(
+                  onPressed: _selectedInstallments.isNotEmpty
+                      ? _addSelectedToCart
+                      : null,
+                  icon: const Icon(Icons.add_shopping_cart),
+                  tooltip: 'Agregar al carrito',
+                ),
+                IconButton(
+                  onPressed: _exitMultiSelectMode,
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Cancelar selección',
+                ),
+              ] else
+                IconButton(
+                  onPressed: _enterMultiSelectMode,
+                  icon: const Icon(Icons.checklist),
+                  tooltip: 'Selección múltiple',
+                ),
+            ],
           ),
-          backgroundColor: themeColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          actions: [
-            if (_isMultiSelectMode) ...[
-              IconButton(
-                onPressed: _selectedInstallments.isNotEmpty
-                    ? _addSelectedToCart
-                    : null,
-                icon: const Icon(Icons.add_shopping_cart),
-                tooltip: 'Agregar al carrito',
-              ),
-              IconButton(
-                onPressed: _exitMultiSelectMode,
-                icon: const Icon(Icons.close),
-                tooltip: 'Cancelar selección',
-              ),
-            ] else
-              IconButton(
-                onPressed: _enterMultiSelectMode,
-                icon: const Icon(Icons.checklist),
-                tooltip: 'Selección múltiple',
-              ),
-          ],
-        ),
-        body: Column(
-          children: [
-            // Encabezado compacto del préstamo
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: themeColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        ProductColors.getIconByCode(productCode),
-                        color: Colors.white,
-                        size: 20,
-                      ),
+          body: Column(
+            children: [
+              // Encabezado compacto del préstamo
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: themeColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          ProductColors.getIconByCode(productCode),
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              productName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              displayName,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            productName,
+                            'Monto',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 10,
+                            ),
+                          ),
+                          Text(
+                            _currencyFormat.format(amount),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            displayName,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Monto',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 10,
-                          ),
-                        ),
-                        Text(
-                          _currencyFormat.format(amount),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Buscador
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Buscar por número de cuota...',
-                  prefixIcon: Icon(Icons.search, color: themeColor),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _searchQuery = '';
-                            });
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                    ],
                   ),
                 ),
               ),
-            ),
 
-            // Lista de cuotas
-            Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _scheduleFuture, // <- future cacheado
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+              // Buscador
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.toLowerCase();
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Buscar por número de cuota...',
+                    prefixIcon: Icon(Icons.search, color: themeColor),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
 
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error al cargar el cronograma',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
+              // Lista de cuotas
+              Expanded(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _scheduleFuture, // <- future cacheado
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.grey[400],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${snapshot.error}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final schedule = snapshot.data ?? [];
-
-                  // Filtrar cuotas según búsqueda
-                  final filteredSchedule = _searchQuery.isEmpty
-                      ? schedule
-                      : schedule.where((installment) {
-                          final number = installment['installmentNumber']
-                              .toString();
-                          final searchLower = _searchQuery.toLowerCase();
-                          return number.contains(searchLower) ||
-                              'cuota $number'.contains(searchLower) ||
-                              '#$number'.contains(searchLower);
-                        }).toList();
-
-                  if (schedule.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No hay cronograma disponible',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  if (filteredSchedule.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No se encontraron cuotas',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Intenta con otro término de búsqueda',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return GridView.builder(
-                    key: PageStorageKey(
-                      'loan_schedule_${widget.loanId}',
-                    ), // <- preserva posición
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.85,
-                        ),
-                    itemCount: filteredSchedule.length,
-                    itemBuilder: (context, index) {
-                      final installment = filteredSchedule[index];
-                      final status = (installment['status'] as String);
-                      final isPaid = status.toLowerCase() == 'paid';
-                      final isOverdue = status.toLowerCase() == 'overdue';
-                      final isSelected = _selectedInstallments.contains(
-                        installment['id'],
-                      );
-
-                      return GestureDetector(
-                        onTap: _isMultiSelectMode && !isPaid
-                            ? () =>
-                                  _toggleInstallmentSelection(installment['id'])
-                            : null,
-                        child: Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: _isMultiSelectMode && isSelected
-                                  ? themeColor
-                                  : _getStatusColor(status).withOpacity(0.3),
-                              width: _isMultiSelectMode && isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Stack(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'Cuota #${installment['installmentNumber']}',
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: _getStatusColor(status),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            _getStatusText(status),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-
-                                    // Monto
-                                    Text(
-                                      _currencyFormat.format(
-                                        installment['totalPayment'],
-                                      ),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.calendar_today,
-                                          size: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            _dateFormat.format(
-                                              installment['dueDate'],
-                                            ),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-
-                                    Text(
-                                      'Capital: ${_currencyFormat.format(installment['principal'])}',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    Text(
-                                      'Interés: ${_currencyFormat.format(installment['interest'])}',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const Spacer(),
-
-                                    if (!_isMultiSelectMode)
-                                      AnimatedBuilder(
-                                        animation: _cartService,
-                                        builder: (context, _) {
-                                          final isInCart = _cartService.items
-                                              .any(
-                                                (item) =>
-                                                    item.id ==
-                                                    installment['id'],
-                                              );
-                                          final bg = isPaid
-                                              ? Colors.grey[300]
-                                              : isInCart
-                                              ? Colors.orange
-                                              : (isOverdue
-                                                    ? Colors.red
-                                                    : themeColor);
-                                          final fg = isPaid
-                                              ? Colors.grey[600]
-                                              : Colors.white;
-
-                                          return SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton(
-                                              onPressed: isPaid
-                                                  ? null
-                                                  : () async {
-                                                      if (isInCart) {
-                                                        _removeFromCart(
-                                                          installment['id'],
-                                                        );
-                                                      } else {
-                                                        await _addToCart(installment);
-                                                      }
-                                                    },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: bg,
-                                                foregroundColor: fg,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 8,
-                                                    ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                elevation: isPaid ? 0 : 2,
-                                              ),
-                                              child: Text(
-                                                isPaid
-                                                    ? 'Pagado'
-                                                    : isInCart
-                                                    ? 'Seleccionado'
-                                                    : 'Agregar',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                  ],
-                                ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error al cargar el cronograma',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
                               ),
-
-                              // Checkbox de selección múltiple
-                              if (_isMultiSelectMode && !isPaid)
-                                Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Checkbox(
-                                      value: isSelected,
-                                      onChanged: (_) =>
-                                          _toggleInstallmentSelection(
-                                            installment['id'],
-                                          ),
-                                      activeColor: themeColor,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-        floatingActionButton: AnimatedBuilder(
-          animation: _cartService,
-          builder: (context, _) {
-            return _cartService.itemCount > 0
-                ? FloatingActionButton.extended(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (modalContext) => MultiBlocProvider(
-                          providers: [
-                            BlocProvider.value(value: context.read<CardBloc>()),
-                            BlocProvider.value(
-                              value: context.read<TransactionBloc>(),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
-                          child: CartBottomSheet(
-                            cartService: _cartService,
-                            paymentCardService: _paymentCardService,
-                          ),
                         ),
                       );
-                    },
-                    backgroundColor: const Color(0xFFEA580C),
-                    icon: const Icon(
-                      Icons.account_balance_wallet,
-                      color: Colors.white,
-                    ),
-                    label: Text(
-                      'Pagos (${_cartService.itemCount})',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  )
-                : const SizedBox.shrink();
-          },
+                    }
+
+                    final schedule = snapshot.data ?? [];
+
+                    // Filtrar cuotas según búsqueda
+                    final filteredSchedule = _searchQuery.isEmpty
+                        ? schedule
+                        : schedule.where((installment) {
+                            final number = installment['installmentNumber']
+                                .toString();
+                            final searchLower = _searchQuery.toLowerCase();
+                            return number.contains(searchLower) ||
+                                'cuota $number'.contains(searchLower) ||
+                                '#$number'.contains(searchLower);
+                          }).toList();
+
+                    if (schedule.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No hay cronograma disponible',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (filteredSchedule.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No se encontraron cuotas',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Intenta con otro término de búsqueda',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return GridView.builder(
+                      key: PageStorageKey(
+                        'loan_schedule_${widget.loanId}',
+                      ), // <- preserva posición
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.85,
+                          ),
+                      itemCount: filteredSchedule.length,
+                      itemBuilder: (context, index) {
+                        final installment = filteredSchedule[index];
+                        final status = (installment['status'] as String);
+                        final isPaid = status.toLowerCase() == 'paid';
+                        final isOverdue = status.toLowerCase() == 'overdue';
+                        final isSelected = _selectedInstallments.contains(
+                          installment['id'],
+                        );
+
+                        return GestureDetector(
+                          onTap: _isMultiSelectMode && !isPaid
+                              ? () => _toggleInstallmentSelection(
+                                  installment['id'],
+                                )
+                              : null,
+                          child: Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: _isMultiSelectMode && isSelected
+                                    ? themeColor
+                                    : _getStatusColor(status).withOpacity(0.3),
+                                width: _isMultiSelectMode && isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Stack(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Cuota #${installment['installmentNumber']}',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _getStatusColor(status),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              _getStatusText(status),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Monto
+                                      Text(
+                                        _currencyFormat.format(
+                                          installment['totalPayment'],
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.calendar_today,
+                                            size: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              _dateFormat.format(
+                                                installment['dueDate'],
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      Text(
+                                        'Capital: ${_currencyFormat.format(installment['principal'])}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      Text(
+                                        'Interés: ${_currencyFormat.format(installment['interest'])}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const Spacer(),
+
+                                      if (!_isMultiSelectMode)
+                                        AnimatedBuilder(
+                                          animation: _cartService,
+                                          builder: (context, _) {
+                                            final isInCart = _cartService.items
+                                                .any(
+                                                  (item) =>
+                                                      item.id ==
+                                                      installment['id'],
+                                                );
+                                            final bg = isPaid
+                                                ? Colors.grey[300]
+                                                : isInCart
+                                                ? Colors.orange
+                                                : (isOverdue
+                                                      ? Colors.red
+                                                      : themeColor);
+                                            final fg = isPaid
+                                                ? Colors.grey[600]
+                                                : Colors.white;
+
+                                            return SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton(
+                                                onPressed: isPaid
+                                                    ? null
+                                                    : () async {
+                                                        if (isInCart) {
+                                                          _removeFromCart(
+                                                            installment['id'],
+                                                          );
+                                                        } else {
+                                                          await _addToCart(
+                                                            installment,
+                                                          );
+                                                        }
+                                                      },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: bg,
+                                                  foregroundColor: fg,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 8,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  elevation: isPaid ? 0 : 2,
+                                                ),
+                                                child: Text(
+                                                  isPaid
+                                                      ? 'Pagado'
+                                                      : isInCart
+                                                      ? 'Seleccionado'
+                                                      : 'Agregar',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Checkbox de selección múltiple
+                                if (_isMultiSelectMode && !isPaid)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.1,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Checkbox(
+                                        value: isSelected,
+                                        onChanged: (_) =>
+                                            _toggleInstallmentSelection(
+                                              installment['id'],
+                                            ),
+                                        activeColor: themeColor,
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: AnimatedBuilder(
+            animation: _cartService,
+            builder: (context, _) {
+              return _cartService.itemCount > 0
+                  ? FloatingActionButton.extended(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (modalContext) => MultiBlocProvider(
+                            providers: [
+                              BlocProvider.value(
+                                value: context.read<CardBloc>(),
+                              ),
+                              BlocProvider.value(
+                                value: context.read<TransactionBloc>(),
+                              ),
+                            ],
+                            child: CartBottomSheet(
+                              cartService: _cartService,
+                              paymentCardService: _paymentCardService,
+                            ),
+                          ),
+                        );
+                      },
+                      backgroundColor: const Color(0xFFEA580C),
+                      icon: const Icon(
+                        Icons.account_balance_wallet,
+                        color: Colors.white,
+                      ),
+                      label: Text(
+                        'Pagos (${_cartService.itemCount})',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    )
+                  : const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );

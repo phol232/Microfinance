@@ -3,12 +3,6 @@ import 'package:intl/intl.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../domain/entities/loan_application.dart';
 import '../../../data/datasources/backend_api_datasource.dart';
-import '../../../data/datasources/loan_application_datasource.dart';
-import '../../../data/repositories/loan_application_repository_impl.dart';
-import '../../../data/repositories/auth_repository_impl.dart';
-import '../../../data/datasources/firebase_auth_datasource.dart';
-import '../../../domain/usecases/loan_application/update_application_status_usecase.dart';
-import '../../../domain/usecases/auth/get_current_user_usecase.dart';
 import '../../utils/product_colors.dart';
 
 class LoanApplicationDetailPage extends StatelessWidget {
@@ -20,18 +14,12 @@ class LoanApplicationDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final isDisbursed = application.status == 'disbursed';
+    final actionButtons = _buildActionButtons(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle de Solicitud'),
         actions: [
-          if (!isDisbursed)
-            IconButton(
-              icon: Icon(Icons.edit, size: screenWidth * 0.06),
-              onPressed: () => _showChangeStatusDialog(context),
-              tooltip: 'Cambiar Estado',
-            ),
           IconButton(
             icon: Icon(Icons.share, size: screenWidth * 0.06),
             onPressed: () {},
@@ -78,8 +66,10 @@ class LoanApplicationDetailPage extends StatelessWidget {
               SizedBox(height: screenHeight * 0.02),
             ],
             // Botones de acción
-            _buildActionButtons(context),
-            SizedBox(height: screenHeight * 0.02),
+            if (actionButtons != null) ...[
+              actionButtons,
+              SizedBox(height: screenHeight * 0.02),
+            ],
             _buildTimestamps(context),
           ],
         ),
@@ -87,136 +77,120 @@ class LoanApplicationDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
+  Widget? _buildActionButtons(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
+    final List<Widget> actions = [];
+
+    // Botón Aprobar Definitivamente (si está pre-aprobado)
+    if (application.decision != null &&
+        application.decision!.result == 'observed' &&
+        application.decision!.isAutomatic &&
+        application.decision!.comments.contains('Pre-aprobado')) {
+      actions.add(
+        Padding(
+          padding: EdgeInsets.only(top: screenHeight * 0.01),
+          child: ElevatedButton.icon(
+            onPressed: () => _approveFinally(context),
+            icon: Icon(Icons.check_circle, size: screenWidth * 0.05),
+            label: Text(
+              'Aprobar Definitivamente',
+              style: TextStyle(fontSize: screenWidth * 0.035),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.all(screenWidth * 0.04),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Botón Tomar Decisión (para otros casos, pero NO si está desembolsado)
+    if ((application.status == 'decision' ||
+            application.status == 'observed' ||
+            (application.status == 'in_review' &&
+                application.scoring != null)) &&
+        application.status != 'disbursed') {
+      actions.add(
+        Padding(
+          padding: EdgeInsets.only(top: screenHeight * 0.01),
+          child: ElevatedButton.icon(
+            onPressed: () => _goToDecisionPage(context),
+            icon: Icon(Icons.gavel, size: screenWidth * 0.05),
+            label: Text(
+              'Tomar Decisión',
+              style: TextStyle(fontSize: screenWidth * 0.035),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.all(screenWidth * 0.04),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Mensaje si ya está desembolsado
+    if (application.status == 'disbursed') {
+      actions.add(
+        Padding(
+          padding: EdgeInsets.only(top: screenHeight * 0.01),
+          child: Container(
+            padding: EdgeInsets.all(screenWidth * 0.04),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(screenWidth * 0.02),
+              border: Border.all(color: Colors.green),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green[700],
+                  size: screenWidth * 0.05,
+                ),
+                SizedBox(width: screenWidth * 0.03),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Préstamo Desembolsado',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[900],
+                        ),
+                      ),
+                      Text(
+                        'Este crédito ya fue desembolsado exitosamente',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (actions.isEmpty) {
+      return null;
+    }
 
     return Card(
       child: Padding(
         padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Acciones',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: screenWidth * 0.045,
-              ),
-            ),
-            SizedBox(height: screenHeight * 0.02),
-
-            // Nota: Botones de Scoring removidos - solo disponibles para administradores en la web
-
-            // Botón Aprobar Definitivamente (si está pre-aprobado)
-            if (application.decision != null &&
-                application.decision!.result == 'observed' &&
-                application.decision!.isAutomatic &&
-                application.decision!.comments.contains('Pre-aprobado'))
-              Padding(
-                padding: EdgeInsets.only(top: screenHeight * 0.01),
-                child: ElevatedButton.icon(
-                  onPressed: () => _approveFinally(context),
-                  icon: Icon(Icons.check_circle, size: screenWidth * 0.05),
-                  label: Text(
-                    'Aprobar Definitivamente',
-                    style: TextStyle(fontSize: screenWidth * 0.035),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.all(screenWidth * 0.04),
-                  ),
-                ),
-              ),
-
-            // Botón Tomar Decisión (para otros casos, pero NO si está desembolsado)
-            if ((application.status == 'decision' ||
-                    application.status == 'observed' ||
-                    (application.status == 'in_review' &&
-                        application.scoring != null)) &&
-                application.status != 'disbursed')
-              Padding(
-                padding: EdgeInsets.only(top: screenHeight * 0.01),
-                child: ElevatedButton.icon(
-                  onPressed: () => _goToDecisionPage(context),
-                  icon: Icon(Icons.gavel, size: screenWidth * 0.05),
-                  label: Text(
-                    'Tomar Decisión',
-                    style: TextStyle(fontSize: screenWidth * 0.035),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.all(screenWidth * 0.04),
-                  ),
-                ),
-              ),
-
-            // Botón Desembolsar (solo si está aprobado Y NO desembolsado)
-            if (application.status == 'approved')
-              Padding(
-                padding: EdgeInsets.only(top: screenHeight * 0.01),
-                child: ElevatedButton.icon(
-                  onPressed: () => _disburseLoan(context),
-                  icon: Icon(Icons.attach_money, size: screenWidth * 0.05),
-                  label: Text(
-                    'Desembolsar Crédito',
-                    style: TextStyle(fontSize: screenWidth * 0.035),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.all(screenWidth * 0.04),
-                  ),
-                ),
-              ),
-
-            // Mensaje si ya está desembolsado
-            if (application.status == 'disbursed')
-              Padding(
-                padding: EdgeInsets.only(top: screenHeight * 0.01),
-                child: Container(
-                  padding: EdgeInsets.all(screenWidth * 0.04),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(screenWidth * 0.02),
-                    border: Border.all(color: Colors.green),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.green[700],
-                        size: screenWidth * 0.05,
-                      ),
-                      SizedBox(width: screenWidth * 0.03),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Préstamo Desembolsado',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[900],
-                              ),
-                            ),
-                            Text(
-                              'Este crédito ya fue desembolsado exitosamente',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green[800],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
+          children: actions,
         ),
       ),
     );
@@ -1252,195 +1226,6 @@ class LoanApplicationDetailPage extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  void _showChangeStatusDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Cambiar Estado de Solicitud'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'La solicitud se cambiará a:',
-                style: Theme.of(dialogContext).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              _buildStatusButton(
-                context,
-                'En Revisión',
-                'in_review',
-                Icons.rate_review,
-                Colors.blue,
-              ),
-              const SizedBox(height: 8),
-              _buildStatusButton(
-                context,
-                'Aprobada',
-                'approved',
-                Icons.check_circle,
-                Colors.green,
-              ),
-              const SizedBox(height: 8),
-              _buildStatusButton(
-                context,
-                'Rechazada',
-                'rejected',
-                Icons.cancel,
-                Colors.red,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancelar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStatusButton(
-    BuildContext context,
-    String label,
-    String status,
-    IconData icon,
-    Color color,
-  ) {
-    final isCurrentStatus = application.status == status;
-
-    return ElevatedButton.icon(
-      onPressed: isCurrentStatus
-          ? null
-          : () {
-              Navigator.of(context).pop();
-              _changeStatus(context, status);
-            },
-      icon: Icon(icon),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isCurrentStatus ? Colors.grey : color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-      ),
-    );
-  }
-
-  Future<void> _changeStatus(BuildContext context, String newStatus) async {
-    // VALIDACIÓN CRÍTICA: No permitir cambiar estado de préstamos desembolsados
-    if (application.status == 'disbursed') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se puede cambiar el estado de un préstamo ya desembolsado',
-          ),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    // Guardar referencias antes del async
-    final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-
-    // Mostrar loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      // Obtener usuario actual
-      final authDataSource = FirebaseAuthDataSource();
-      final authRepository = AuthRepositoryImpl(dataSource: authDataSource);
-      final getCurrentUserUseCase = GetCurrentUserUseCase(authRepository);
-
-      final userResult = await getCurrentUserUseCase();
-
-      String userId = '';
-      userResult.fold(
-        (failure) {
-          throw Exception(
-            'No se pudo obtener el usuario actual: ${failure.message}',
-          );
-        },
-        (user) {
-          if (user == null) {
-            throw Exception('Usuario no autenticado');
-          }
-          userId = user.uid;
-        },
-      );
-
-      // Usar UpdateApplicationStatusUseCase siguiendo arquitectura limpia
-      final dataSource = LoanApplicationDataSource();
-      final repository = LoanApplicationRepositoryImpl(dataSource: dataSource);
-      final updateStatusUseCase = UpdateApplicationStatusUseCase(repository);
-
-      final result = await updateStatusUseCase(
-        microfinancieraId: application.microfinancieraId,
-        applicationId: application.id,
-        newStatus: newStatus,
-        userId: userId,
-        reason: 'Cambio manual desde app móvil',
-      );
-
-      // Cerrar loading
-      navigator.pop();
-
-      result.fold(
-        (failure) {
-          // Mostrar error
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('Error al cambiar estado: ${failure.message}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-
-          AppLogger.error(
-            'Error cambiando estado de aplicación',
-            error: failure.message,
-          );
-        },
-        (_) {
-          // Mostrar mensaje de éxito
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('Estado cambiado a: ${_getStatusText(newStatus)}'),
-              backgroundColor: _getStatusColor(newStatus),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-
-          // Volver a la pantalla anterior para que se actualice la lista
-          navigator.pop();
-        },
-      );
-    } catch (e) {
-      // Cerrar loading
-      navigator.pop();
-
-      // Mostrar error
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Error inesperado: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      AppLogger.error('Error inesperado cambiando estado', error: e);
-    }
   }
 
   Color _getStatusColor(String status) {

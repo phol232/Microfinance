@@ -164,7 +164,11 @@ class _LoansScreenState extends State<LoansScreen> {
           ),
         ),
       ),
-    );
+    ).then((shouldRefresh) {
+      if (shouldRefresh == true && mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override

@@ -322,8 +322,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Regresar a la pantalla principal (MainScreen)
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    Navigator.of(context).pop(true);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFEA580C),
