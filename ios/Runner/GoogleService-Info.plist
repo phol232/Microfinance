@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>862824702457-onp060n49m4i5ghktk1vhovqrgfgbf4d.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.862824702457-onp060n49m4i5ghktk1vhovqrgfgbf4d</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>862824702457-1faki5bgf2sblhiauqfis1sncga2el23.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyB9No4ZrQG8BF122mHClDgYVc0pbJ370YA</string>
 	<key>GCM_SENDER_ID</key>
@@ -9,26 +15,22 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.mobile</string>
+	<string>com.avante.microfinance</string>
 	<key>PROJECT_ID</key>
 	<string>microfinance-3753e</string>
 	<key>STORAGE_BUCKET</key>
 	<string>microfinance-3753e.firebasestorage.app</string>
-	<key>CLIENT_ID</key>
-	<string>862824702457-nmeks60f1ftn8umv11n8arevshj2klsf.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.862824702457-nmeks60f1ftn8umv11n8arevshj2klsf</string>
 	<key>IS_ADS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:862824702457:ios:8f8c756e32f776e1005d28</string>
+	<string>1:862824702457:ios:ca1f6230d9a6fbbd005d28</string>
 </dict>
 </plist>
