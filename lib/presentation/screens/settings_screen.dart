@@ -197,7 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.privacy_tip_outlined,
                   title: 'Política de Privacidad',
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
+                  onTap: () => _showPrivacySheet(context),
                 ),
                 _buildListTile(
                   icon: Icons.help_outline,
@@ -501,6 +501,140 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const LocationMapScreen()),
+    );
+  }
+
+  void _showPrivacySheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: colorScheme.primary.withOpacity(0.1),
+                    child: Icon(Icons.privacy_tip, color: colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Privacidad y Permisos',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Para brindarte la mejor experiencia, la app solicita:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              _permissionRow(
+                icon: Icons.camera_alt_outlined,
+                title: 'Cámara',
+                detail: 'Tomar fotos y capturar documentos cuando lo autorizas.',
+                colorScheme: colorScheme,
+              ),
+              _permissionRow(
+                icon: Icons.photo_library_outlined,
+                title: 'Fotos/Galería',
+                detail:
+                    'Seleccionar imágenes desde tu dispositivo cuando lo permites.',
+                colorScheme: colorScheme,
+              ),
+              _permissionRow(
+                icon: Icons.location_on_outlined,
+                title: 'Ubicación',
+                detail:
+                    'Mostrar tu ubicación en el mapa y calcular rutas, solo al usar la app.',
+                colorScheme: colorScheme,
+              ),
+              _permissionRow(
+                icon: Icons.storage_outlined,
+                title: 'Almacenamiento',
+                detail:
+                    'Guardar temporalmente archivos necesarios para tu experiencia.',
+                colorScheme: colorScheme,
+              ),
+              _permissionRow(
+                icon: Icons.fingerprint,
+                title: 'Biometría',
+                detail:
+                    'Autenticación local con Face ID/huella. No guardamos datos biométricos en servidores.',
+                colorScheme: colorScheme,
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _permissionRow({
+    required IconData icon,
+    required String title,
+    required String detail,
+    required ColorScheme colorScheme,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: colorScheme.primary, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

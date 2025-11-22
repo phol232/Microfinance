@@ -70,6 +70,9 @@ class CardDto {
 
   factory CardDto.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? <String, dynamic>{};
+    final rawStatus = data['status'] as String?;
+    final mappedStatus = _mapStatus(rawStatus, data['isActive']);
+
     return CardDto(
       id: doc.id,
       userId: data['userId'] ?? '',
@@ -86,10 +89,7 @@ class CardDto {
       ),
       holderName: data['holderName'] ?? '',
       expiryDate: _parseTimestamp(data['expiryDate']),
-      status: CardStatus.values.firstWhere(
-        (status) => status.name == data['status'],
-        orElse: () => CardStatus.requested,
-      ),
+      status: mappedStatus,
       createdAt: _parseTimestamp(data['createdAt']),
       updatedAt:
           data['updatedAt'] != null ? _parseTimestamp(data['updatedAt']) : null,
@@ -229,5 +229,37 @@ class CardDto {
     if (timestamp is Timestamp) return timestamp.toDate();
     if (timestamp is DateTime) return timestamp;
     return DateTime.now();
+  }
+
+  static CardStatus _mapStatus(String? status, dynamic isActiveField) {
+    // Normalizar valores provenientes del backend
+    switch (status) {
+      case 'active':
+        return CardStatus.active;
+      case 'pending':
+      case 'requested':
+        return CardStatus.requested;
+      case 'approved':
+        return CardStatus.approved;
+      case 'inProduction':
+        return CardStatus.inProduction;
+      case 'delivered':
+        return CardStatus.delivered;
+      case 'suspended':
+      case 'blocked':
+        return CardStatus.blocked;
+      case 'expired':
+        return CardStatus.expired;
+      case 'cancelled':
+      case 'closed':
+      case 'rejected':
+        return CardStatus.cancelled;
+      default:
+        // Si no hay status pero existe isActive, usarlo como guía
+        if (isActiveField is bool) {
+          return isActiveField ? CardStatus.active : CardStatus.requested;
+        }
+        return CardStatus.requested;
+    }
   }
 }
