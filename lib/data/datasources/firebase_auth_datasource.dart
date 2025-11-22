@@ -9,6 +9,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/config/firebase_config.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/microfinanciera.dart';
+import '../../data/models/microfinanciera_dto.dart';
+import '../../data/models/customer_dto.dart';
+import '../../domain/entities/customer.dart';
 import '../../domain/entities/login_result.dart';
 import 'backend_api_datasource.dart';
 
@@ -20,13 +23,13 @@ class FirebaseAuthDataSource {
     BackendApiDatasource? backendApi,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
-       _backendApi = backendApi ?? BackendApiDatasource();
+       _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+  // _backendApi is intentionally not used yet - reserved for future notification system
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final GoogleSignIn _googleSignIn;
-  final BackendApiDatasource _backendApi;
+  // final BackendApiDatasource _backendApi; // TODO: Use for notification system
   Future<void>? _googleInitialization;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -341,25 +344,26 @@ class FirebaseAuthDataSource {
           email.toLowerCase(),
         }..removeWhere((value) => value.isEmpty);
 
-        final customerData = <String, dynamic>{
-          'mfId': microfinancieraId,
-          'userId': user.uid,
-          'personType': 'natural',
-          'docType': 'dni',
-          'docNumber': trimmedDni.isNotEmpty ? trimmedDni : null,
-          'firstName': trimmedFirstName.isNotEmpty ? trimmedFirstName : null,
-          'lastName': trimmedLastName.isNotEmpty ? trimmedLastName : null,
-          'fullName': normalizedFullName,
-          'phone': trimmedPhone.isNotEmpty ? trimmedPhone : null,
-          'email': email,
-          'searchKeys': searchKeys.toList(),
-          'isActive': true,
-          'createdAt': serverTimestamp,
-          'createdBy': user.uid,
-          'primaryRoleId': normalizedRoles.first,
-        };
+        final customer = Customer(
+          id: '',
+          mfId: microfinancieraId,
+          userId: user.uid,
+          personType: 'natural',
+          docType: 'dni',
+          docNumber: trimmedDni.isNotEmpty ? trimmedDni : '',
+          fullName: normalizedFullName,
+          phone: trimmedPhone.isNotEmpty ? trimmedPhone : '',
+          email: email,
+          address: null,
+          searchKeys: searchKeys.toList(),
+          isActive: true,
+          createdAt: DateTime.now(),
+          createdBy: user.uid,
+        );
 
-        await customersCollection.doc(user.uid).set(customerData);
+        final customerDto = CustomerDto.fromDomain(customer);
+
+        await customersCollection.doc(user.uid).set(customerDto.toFirestore());
       }
 
       await _ensureWorkerRecordForUser(
@@ -570,8 +574,9 @@ class FirebaseAuthDataSource {
         microfinancieraRef: microfinancieraRef,
         requestedRoles: roles,
       );
-      final roleSet =
-          resolvedRoles.isNotEmpty ? resolvedRoles : const ['customer'];
+      final roleSet = resolvedRoles.isNotEmpty
+          ? resolvedRoles
+          : const ['customer'];
 
       final membershipData = <String, dynamic>{
         'userId': user.uid,
@@ -805,7 +810,6 @@ class FirebaseAuthDataSource {
       final customersCollection = microfinancieraRef.collection('customers');
       final customerRef = customersCollection.doc(user.uid);
       final existingSnapshot = await customerRef.get();
-      final timestamp = FieldValue.serverTimestamp();
 
       final resolvedDisplayName = () {
         final explicit = displayName?.trim();
@@ -840,32 +844,37 @@ class FirebaseAuthDataSource {
         if (resolvedDni != null) resolvedDni,
       }..removeWhere((value) => value.isEmpty);
 
-      final customerData = <String, dynamic>{
-        'mfId': microfinancieraRef.id,
-        'userId': user.uid,
-        'firstName': nameParts.firstName,
-        'lastName': nameParts.lastName,
-        'fullName': resolvedDisplayName,
-        'email': resolvedEmail,
-        'phone': resolvedPhone,
-        'searchKeys': searchKeys.toList(),
-        'primaryRoleId': normalizedRoles.contains('customer')
-            ? 'customer'
-            : (normalizedRoles.isNotEmpty ? normalizedRoles.first : 'customer'),
-        'isActive': true,
-        'docType': 'dni',
-        'docNumber': resolvedDni,
-        'dni': resolvedDni,
-      };
+      final baseCreatedAt = existingSnapshot.exists
+          ? (existingSnapshot.data()?['createdAt'])
+          : null;
+      final createdAt = (baseCreatedAt is Timestamp)
+          ? baseCreatedAt.toDate()
+          : DateTime.now();
+
+      final customer = Customer(
+        id: existingSnapshot.exists ? existingSnapshot.id : '',
+        mfId: microfinancieraRef.id,
+        userId: user.uid,
+        personType: 'natural',
+        docType: 'dni',
+        docNumber: resolvedDni ?? '',
+        fullName: resolvedDisplayName,
+        phone: resolvedPhone ?? '',
+        email: resolvedEmail ?? user.email,
+        address: null,
+        searchKeys: searchKeys.toList(),
+        isActive: true,
+        createdAt: createdAt,
+        createdBy: user.uid,
+      );
+
+      final dto = CustomerDto.fromDomain(customer);
 
       if (!existingSnapshot.exists) {
-        customerData['personType'] = 'natural';
-        customerData['createdAt'] = timestamp;
-        customerData['createdBy'] = user.uid;
-        await customerRef.set(customerData);
+        await customerRef.set(dto.toFirestore());
       } else {
-        customerData['updatedAt'] = timestamp;
-        await customerRef.set(customerData, SetOptions(merge: true));
+        // merge to keep any additional fields
+        await customerRef.set(dto.toFirestore(), SetOptions(merge: true));
       }
     } catch (error, stackTrace) {
       _logError('ensureCustomerRecordForUser', error, stackTrace);
@@ -1214,6 +1223,13 @@ class FirebaseAuthDataSource {
         'photoUrl':
             stringFrom(membershipData['photoUrl']) ??
             stringFrom(customerData?['photoUrl']),
+        'photoBase64':
+            stringFrom(membershipData['photoBase64']) ??
+            stringFrom(membershipData['fotoBase64']) ??
+            stringFrom(customerData?['photoBase64']) ??
+            stringFrom(customerData?['fotoBase64']) ??
+            stringFrom(rootUserData?['photoBase64']) ??
+            stringFrom(rootUserData?['fotoBase64']),
         'phone':
             stringFrom(customerData?['phone']) ??
             stringFrom(membershipData['phone']) ??
@@ -1341,6 +1357,8 @@ class FirebaseAuthDataSource {
         ) ??
         trimmedString(membershipData['displayName']);
     final trimmedPhotoUrl = trimmedString(updates['photoUrl']);
+    final trimmedPhotoBase64 =
+        trimmedString(updates['photoBase64'] ?? updates['fotoBase64']);
     final trimmedPhone = trimmedString(updates['phone']);
     final trimmedDni = trimmedString(updates['dni']);
 
@@ -1349,6 +1367,9 @@ class FirebaseAuthDataSource {
     final existingPhone = trimmedString(membershipData['phone']);
     final existingDni = trimmedString(membershipData['dni']);
     final existingDisplayName = trimmedString(membershipData['displayName']);
+    final existingPhotoBase64 =
+        trimmedString(membershipData['photoBase64']) ??
+        trimmedString(membershipData['fotoBase64']);
 
     final resolvedFirstName = trimmedFirstName ?? existingFirstName;
     final resolvedLastName = trimmedLastName ?? existingLastName;
@@ -1366,6 +1387,10 @@ class FirebaseAuthDataSource {
     final resolvedPhotoUrl = updates.containsKey('photoUrl')
         ? trimmedPhotoUrl
         : trimmedString(membershipData['photoUrl']);
+    final resolvedPhotoBase64 =
+        (updates.containsKey('photoBase64') || updates.containsKey('fotoBase64'))
+            ? trimmedPhotoBase64
+            : existingPhotoBase64;
 
     final membershipUpdates = <String, dynamic>{};
     if (resolvedFullName.isNotEmpty) {
@@ -1373,6 +1398,10 @@ class FirebaseAuthDataSource {
     }
     if (updates.containsKey('photoUrl')) {
       membershipUpdates['photoUrl'] = resolvedPhotoUrl;
+    }
+    if (updates.containsKey('photoBase64') || updates.containsKey('fotoBase64')) {
+      membershipUpdates['photoBase64'] = resolvedPhotoBase64;
+      membershipUpdates['fotoBase64'] = resolvedPhotoBase64;
     }
     if (resolvedFirstName != null) {
       membershipUpdates['firstName'] = resolvedFirstName;
@@ -1537,6 +1566,8 @@ class FirebaseAuthDataSource {
       'phone': resolvedPhone,
       'dni': resolvedDni,
       'photoUrl': resolvedPhotoUrl,
+      'photoBase64': resolvedPhotoBase64,
+      'fotoBase64': resolvedPhotoBase64,
       'primaryMfId': microfinancieraId,
       'primaryMembershipId': membershipId,
       'primaryRoles': roles,
@@ -1556,6 +1587,8 @@ class FirebaseAuthDataSource {
       'phone': resolvedPhone,
       'dni': resolvedDni,
       'photoUrl': resolvedPhotoUrl,
+      'photoBase64': resolvedPhotoBase64,
+      'fotoBase64': resolvedPhotoBase64,
       'microfinancieraId': microfinancieraId,
       'membershipId': membershipId,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -1631,7 +1664,7 @@ class FirebaseAuthDataSource {
           .get();
 
       return query.docs
-          .map((doc) => Microfinanciera.fromFirestore(doc))
+          .map((doc) => MicrofinancieraDto.fromFirestore(doc).toDomain())
           .toList();
     } catch (error, stackTrace) {
       // Si el índice aún se está construyendo, usar filtrado del lado del cliente
@@ -1640,7 +1673,7 @@ class FirebaseAuthDataSource {
           final query = await _firestore.collection('microfinancieras').get();
 
           final microfinancieras = query.docs
-              .map((doc) => Microfinanciera.fromFirestore(doc))
+              .map((doc) => MicrofinancieraDto.fromFirestore(doc).toDomain())
               .where((mf) => mf.isActive)
               .toList();
 

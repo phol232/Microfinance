@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/infrastructure/tenant/tenant_controller.dart';
 
 import '../../bloc/intake_request/intake_request_bloc.dart';
 import '../../bloc/intake_request/intake_request_event.dart';
@@ -60,9 +60,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tus Solicitudes'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              context.read<IntakeRequestBloc>().add(
+                const IntakeRequestRefreshRequested(),
+              );
+            },
+            tooltip: 'Actualizar solicitudes',
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -111,7 +121,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
               final hasPendingApplications = userRequests.any(
                 (request) =>
-                    request.status == 'pending' || request.status == 'in_review',
+                    request.status == 'pending' ||
+                    request.status == 'in_review',
               );
 
               return FloatingActionButton(
@@ -246,21 +257,30 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
         }
 
         if (state.status == IntakeRequestStatus.error) {
+          final colorScheme = Theme.of(context).colorScheme;
+
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  Icon(Icons.error_outline, size: 64, color: colorScheme.error),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Error al cargar solicitudes',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     state.errorMessage ?? 'Error desconocido',
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -282,12 +302,18 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
             ? state.requests
             : state.requests.where((r) => r.userId == uid).toList();
 
+        final colorScheme = Theme.of(context).colorScheme;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Solicitudes Recientes',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -296,24 +322,28 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
-                    children: const [
+                    children: [
                       Icon(
                         Icons.description_outlined,
                         size: 64,
-                        color: Colors.grey,
+                        color: colorScheme.onSurfaceVariant,
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       Text(
                         'Aún no tienes solicitudes',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurface,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         'Crea una solicitud pulsando el botón +',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -358,17 +388,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   }
 
   Color _getStatusColor(String? status) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     switch (status) {
       case 'pending':
       case 'in_review':
-        return Colors.orange;
+        return const Color(0xFFFF9800); // Naranja para pending
       case 'approved':
       case 'disbursed':
-        return Colors.green;
+        return const Color(0xFF4CAF50); // Verde para aprobado
       case 'rejected':
-        return Colors.red;
+        return colorScheme.error;
       default:
-        return Colors.grey;
+        return colorScheme.onSurfaceVariant;
     }
   }
 
@@ -416,26 +448,29 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   }
 
   void _showPendingApplicationMessage(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
+      SnackBar(
+        content: const Text(
           'No puedes crear una nueva solicitud mientras tengas una pendiente. '
           'Espera a que tu solicitud actual sea aprobada o rechazada.',
         ),
-        backgroundColor: Colors.orange,
-        duration: Duration(seconds: 4),
+        backgroundColor: const Color(0xFFFF9800), // Naranja warning
+        duration: const Duration(seconds: 4),
       ),
     );
   }
 
   void _showCreateRequestSheet(BuildContext context) {
     final authState = context.read<AuthBloc>().state;
+    final colorScheme = Theme.of(context).colorScheme;
 
     if (authState is! AuthAuthenticated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes estar autenticado para continuar'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Debes estar autenticado para continuar'),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;

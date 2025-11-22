@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
@@ -99,12 +102,10 @@ class _MainScreenState extends State<MainScreen> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
 
-      // Verificar status en tiempo real
       if (profile.status != null &&
           profile.status != 'approved' &&
           profile.status != 'pending' &&
           profile.status != 'active') {
-        // Cerrar sesión automáticamente si el status cambió
         WidgetsBinding.instance.addPostFrameCallback((_) {
           debugPrint(
             '❌ RBAC MainScreen: Status inválido detectado: ${profile.status}',
@@ -118,8 +119,8 @@ class _MainScreenState extends State<MainScreen> {
     final AppUser? user = authState is AuthAuthenticated
         ? authState.user
         : authState is AuthPending
-            ? authState.user
-            : null;
+        ? authState.user
+        : null;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -343,14 +344,22 @@ class _MainScreenState extends State<MainScreen> {
   }) {
     final String initials = _getInitials(user, profile: profile);
     final String? photoUrl = profile?.photoUrl;
+    final Uint8List? photoBytes = _decodeBase64Image(profile?.photoBase64);
+    final ImageProvider? avatarImage;
+
+    if (photoBytes != null) {
+      avatarImage = MemoryImage(photoBytes);
+    } else if (photoUrl != null && photoUrl.isNotEmpty) {
+      avatarImage = NetworkImage(photoUrl);
+    } else {
+      avatarImage = null;
+    }
 
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.primary,
-      backgroundImage: photoUrl != null && photoUrl.isNotEmpty
-          ? NetworkImage(photoUrl)
-          : null,
-      child: (photoUrl == null || photoUrl.isEmpty)
+      backgroundImage: avatarImage,
+      child: avatarImage == null
           ? Text(
               initials,
               style: AppTypography.labelMedium.copyWith(
@@ -360,6 +369,15 @@ class _MainScreenState extends State<MainScreen> {
             )
           : null,
     );
+  }
+
+  Uint8List? _decodeBase64Image(String? base64String) {
+    if (base64String == null || base64String.isEmpty) return null;
+    try {
+      return base64Decode(base64String);
+    } catch (_) {
+      return null;
+    }
   }
 
   Widget _buildDrawer(BuildContext context, AppUser? user) {

@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/card.dart';
+import '../models/card_dto.dart';
 
 class CardDataSource {
   CardDataSource({FirebaseFirestore? firestore})
@@ -24,8 +24,9 @@ class CardDataSource {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map(
-            (snapshot) =>
-                snapshot.docs.map((doc) => Card.fromFirestore(doc)).toList(),
+            (snapshot) => snapshot.docs
+                .map((doc) => CardDto.fromFirestore(doc).toDomain())
+                .toList(),
           );
     } catch (error, stackTrace) {
       _logError('getUserCards', error, stackTrace);
@@ -33,7 +34,10 @@ class CardDataSource {
     }
   }
 
-  Stream<List<Card>> getCardsByAccount(String accountId, String microfinancieraId) {
+  Stream<List<Card>> getCardsByAccount(
+    String accountId,
+    String microfinancieraId,
+  ) {
     try {
       return _firestore
           .collection(_getCardsCollection(microfinancieraId))
@@ -41,8 +45,9 @@ class CardDataSource {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map(
-            (snapshot) =>
-                snapshot.docs.map((doc) => Card.fromFirestore(doc)).toList(),
+            (snapshot) => snapshot.docs
+                .map((doc) => CardDto.fromFirestore(doc).toDomain())
+                .toList(),
           );
     } catch (error, stackTrace) {
       _logError('getCardsByAccount', error, stackTrace);
@@ -52,9 +57,12 @@ class CardDataSource {
 
   Future<Card?> getCardById(String cardId, String microfinancieraId) async {
     try {
-      final doc = await _firestore.collection(_getCardsCollection(microfinancieraId)).doc(cardId).get();
+      final doc = await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .doc(cardId)
+          .get();
       if (doc.exists && doc.data() != null) {
-        return Card.fromFirestore(doc);
+        return CardDto.fromFirestore(doc).toDomain();
       }
       return null;
     } catch (error, stackTrace) {
@@ -67,11 +75,13 @@ class CardDataSource {
     try {
       final cardNumber = await _generateCardNumber(microfinancieraId);
 
-      final cardData = card
-          .copyWith(cardNumber: cardNumber, createdAt: DateTime.now())
-          .toFirestore();
+      final cardData = CardDto.fromDomain(
+        card.copyWith(cardNumber: cardNumber, createdAt: DateTime.now()),
+      ).toFirestore();
 
-      final docRef = await _firestore.collection(_getCardsCollection(microfinancieraId)).add(cardData);
+      final docRef = await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .add(cardData);
       return docRef.id;
     } catch (error, stackTrace) {
       _logError('requestCard', error, stackTrace);
@@ -84,7 +94,7 @@ class CardDataSource {
       await _firestore
           .collection(_getCardsCollection(microfinancieraId))
           .doc(card.id)
-          .update(card.toFirestore());
+          .update(CardDto.fromDomain(card).toFirestore());
     } catch (error, stackTrace) {
       _logError('updateCard', error, stackTrace);
       rethrow;
@@ -93,11 +103,14 @@ class CardDataSource {
 
   Future<void> blockCard(String cardId, String microfinancieraId) async {
     try {
-      await _firestore.collection(_getCardsCollection(microfinancieraId)).doc(cardId).update({
-        'status': CardStatus.blocked.name,
-        'blockedAt': Timestamp.fromDate(DateTime.now()),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
+      await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .doc(cardId)
+          .update({
+            'status': CardStatus.blocked.name,
+            'blockedAt': Timestamp.fromDate(DateTime.now()),
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
     } catch (error, stackTrace) {
       _logError('blockCard', error, stackTrace);
       rethrow;
@@ -106,11 +119,14 @@ class CardDataSource {
 
   Future<void> unblockCard(String cardId, String microfinancieraId) async {
     try {
-      await _firestore.collection(_getCardsCollection(microfinancieraId)).doc(cardId).update({
-        'status': CardStatus.active.name,
-        'blockedAt': null,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
+      await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .doc(cardId)
+          .update({
+            'status': CardStatus.active.name,
+            'blockedAt': null,
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
     } catch (error, stackTrace) {
       _logError('unblockCard', error, stackTrace);
       rethrow;
@@ -119,11 +135,14 @@ class CardDataSource {
 
   Future<void> cancelCard(String cardId, String microfinancieraId) async {
     try {
-      await _firestore.collection(_getCardsCollection(microfinancieraId)).doc(cardId).update({
-        'status': CardStatus.cancelled.name,
-        'cancelledAt': Timestamp.fromDate(DateTime.now()),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
+      await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .doc(cardId)
+          .update({
+            'status': CardStatus.cancelled.name,
+            'cancelledAt': Timestamp.fromDate(DateTime.now()),
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
     } catch (error, stackTrace) {
       _logError('cancelCard', error, stackTrace);
       rethrow;
@@ -132,18 +151,25 @@ class CardDataSource {
 
   Future<void> activateCard(String cardId, String microfinancieraId) async {
     try {
-      await _firestore.collection(_getCardsCollection(microfinancieraId)).doc(cardId).update({
-        'status': CardStatus.active.name,
-        'activatedAt': Timestamp.fromDate(DateTime.now()),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
+      await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .doc(cardId)
+          .update({
+            'status': CardStatus.active.name,
+            'activatedAt': Timestamp.fromDate(DateTime.now()),
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
     } catch (error, stackTrace) {
       _logError('activateCard', error, stackTrace);
       rethrow;
     }
   }
 
-  Stream<List<Card>> getCardsByStatus(String userId, CardStatus status, String microfinancieraId) {
+  Stream<List<Card>> getCardsByStatus(
+    String userId,
+    CardStatus status,
+    String microfinancieraId,
+  ) {
     try {
       return _firestore
           .collection(_getCardsCollection(microfinancieraId))
@@ -152,8 +178,9 @@ class CardDataSource {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map(
-            (snapshot) =>
-                snapshot.docs.map((doc) => Card.fromFirestore(doc)).toList(),
+            (snapshot) => snapshot.docs
+                .map((doc) => CardDto.fromFirestore(doc).toDomain())
+                .toList(),
           );
     } catch (error, stackTrace) {
       _logError('getCardsByStatus', error, stackTrace);
@@ -161,7 +188,10 @@ class CardDataSource {
     }
   }
 
-  Future<bool> canRequestCard(String accountId, String microfinancieraId) async {
+  Future<bool> canRequestCard(
+    String accountId,
+    String microfinancieraId,
+  ) async {
     try {
       final snapshot = await _firestore
           .collection(_getCardsCollection(microfinancieraId))
@@ -185,12 +215,17 @@ class CardDataSource {
     }
   }
 
-  Future<bool> canRequestCardByType(String accountId, String microfinancieraId, CardType cardType, CardBrand cardBrand) async {
+  Future<bool> canRequestCardByType(
+    String accountId,
+    String microfinancieraId,
+    CardType cardType,
+    CardBrand cardBrand,
+  ) async {
     try {
       // Reglas de negocio de la microfinanciera:
       // - Máximo 2 tarjetas de débito por cuenta (1 Visa + 1 Mastercard)
       // - Tarjetas de crédito ilimitadas
-      
+
       if (cardType == CardType.debit) {
         // Para débito, verificar que no tenga ya una tarjeta de la misma marca
         final existingDebitSnapshot = await _firestore
@@ -245,7 +280,10 @@ class CardDataSource {
     }
   }
 
-  Future<int> getUserActiveCardCount(String userId, String microfinancieraId) async {
+  Future<int> getUserActiveCardCount(
+    String userId,
+    String microfinancieraId,
+  ) async {
     try {
       final snapshot = await _firestore
           .collection(_getCardsCollection(microfinancieraId))
@@ -277,7 +315,10 @@ class CardDataSource {
       if (atmLimit != null) updates['atmLimit'] = atmLimit;
       if (onlineLimit != null) updates['onlineLimit'] = onlineLimit;
 
-      await _firestore.collection(_getCardsCollection(microfinancieraId)).doc(cardId).update(updates);
+      await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .doc(cardId)
+          .update(updates);
     } catch (error, stackTrace) {
       _logError('updateCardLimits', error, stackTrace);
       rethrow;
@@ -304,7 +345,10 @@ class CardDataSource {
       if (isInternationalEnabled != null)
         updates['isInternationalEnabled'] = isInternationalEnabled;
 
-      await _firestore.collection(_getCardsCollection(microfinancieraId)).doc(cardId).update(updates);
+      await _firestore
+          .collection(_getCardsCollection(microfinancieraId))
+          .doc(cardId)
+          .update(updates);
     } catch (error, stackTrace) {
       _logError('updateCardSecuritySettings', error, stackTrace);
       rethrow;
@@ -318,13 +362,12 @@ class CardDataSource {
     const maxAttempts = 10;
 
     while (exists && attempts < maxAttempts) {
-
       final random = Random();
-      final part1 = '4${random.nextInt(999).toString().padLeft(3, '0')}'; 
-      final part2 = random.nextInt(10000).toString().padLeft(4, '0');     
-      final part3 = random.nextInt(10000).toString().padLeft(4, '0');     
-      final part4 = random.nextInt(10000).toString().padLeft(4, '0');     
-      
+      final part1 = '4${random.nextInt(999).toString().padLeft(3, '0')}';
+      final part2 = random.nextInt(10000).toString().padLeft(4, '0');
+      final part3 = random.nextInt(10000).toString().padLeft(4, '0');
+      final part4 = random.nextInt(10000).toString().padLeft(4, '0');
+
       cardNumber = '$part1$part2$part3$part4';
 
       // Verificar que el número no exista en la base de datos
@@ -338,7 +381,9 @@ class CardDataSource {
     }
 
     if (attempts >= maxAttempts) {
-      throw Exception('No se pudo generar un número de tarjeta único después de $maxAttempts intentos');
+      throw Exception(
+        'No se pudo generar un número de tarjeta único después de $maxAttempts intentos',
+      );
     }
 
     return cardNumber;

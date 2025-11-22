@@ -7,7 +7,6 @@ import '../../bloc/auth/auth_state.dart';
 import '../../components/app_card.dart';
 import '../../components/primary_button.dart';
 import '../../components/text_field_outlined.dart';
-import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import 'login_page.dart';
@@ -63,7 +62,9 @@ class _RegisterPageState extends State<RegisterPage> {
       context.read<AuthBloc>().add(const AuthLoadMicrofinancierasRequested());
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Error al cargar microfinancieras. Intenta nuevamente.');
+        _showErrorSnackBar(
+          'Error al cargar microfinancieras. Intenta nuevamente.',
+        );
       }
     }
   }
@@ -88,7 +89,7 @@ class _RegisterPageState extends State<RegisterPage> {
       listener: (context, state) {
         if (state is AuthError) {
           // Detener cualquier estado de loading cuando hay error
-          if (state.errorCode == 'microfinancieras_load_error' || 
+          if (state.errorCode == 'microfinancieras_load_error' ||
               state.errorCode == 'login_error' ||
               state.errorCode == 'registration_error') {
             // El estado de microfinancieras se maneja en el builder
@@ -125,12 +126,11 @@ class _RegisterPageState extends State<RegisterPage> {
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading;
+        final colorScheme = Theme.of(context).colorScheme;
 
         return Scaffold(
           body: Container(
-            decoration: const BoxDecoration(
-              gradient: AppColors.surfaceGradient,
-            ),
+            decoration: BoxDecoration(color: colorScheme.background),
             child: SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -185,121 +185,20 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildBrandSection({bool isCompact = false}) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    if (isCompact) {
-      return Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(
-                screenWidth * 0.04,
-              ), // 4% del ancho
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: screenWidth * 0.02, // 2% del ancho
-                  offset: Offset(0, screenHeight * 0.005), // 0.5% de la altura
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.account_balance,
-              color: AppColors.onPrimary,
-              size: screenWidth * 0.07, // 7% del ancho
-            ),
-          ),
-          SizedBox(height: screenHeight * 0.02), // 2% de la altura
-          Column(
-            children: [
-              Text(
-                'Microfinance',
-                style: AppTypography.headlineMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  fontSize: screenWidth * 0.06, // 6% del ancho
-                ),
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                'Gestión financiera inteligente',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                  fontSize: screenWidth * 0.035, // 3.5% del ancho
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: EdgeInsets.all(screenWidth * 0.05), // 5% del ancho
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(
-              screenWidth * 0.04,
-            ), // 4% del ancho
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: screenWidth * 0.02, // 2% del ancho
-                offset: Offset(0, screenHeight * 0.005), // 0.5% de la altura
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.account_balance,
-            color: AppColors.onPrimary,
-            size: screenWidth * 0.08, // 8% del ancho
-          ),
-        ),
-        SizedBox(width: screenWidth * 0.05), // 5% del ancho
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Microfinance',
-              style: AppTypography.headlineLarge.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                fontSize: screenWidth * 0.07, // 7% del ancho
-              ),
-            ),
-            Text(
-              'Gestión financiera inteligente',
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.onSurfaceVariant,
-                fontSize: screenWidth * 0.04, // 4% del ancho
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildWelcomeSection({bool isCompact = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Text(
       'Crea tu cuenta',
       style: AppTypography.headlineLarge.copyWith(
         fontWeight: FontWeight.bold,
-        color: AppColors.onSurface,
+        color: colorScheme.onSurface,
       ),
       textAlign: TextAlign.center,
     );
   }
 
   Widget _buildMicrofinancieraSelector() {
+    final colorScheme = Theme.of(context).colorScheme;
     if (_microfinancieras.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +206,7 @@ class _RegisterPageState extends State<RegisterPage> {
           Text(
             'Microfinanciera',
             style: AppTypography.labelLarge.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -315,7 +214,7 @@ class _RegisterPageState extends State<RegisterPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.outline),
+              border: Border.all(color: colorScheme.outline),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             child: const Row(
@@ -340,7 +239,7 @@ class _RegisterPageState extends State<RegisterPage> {
         Text(
           'Microfinanciera',
           style: AppTypography.labelLarge.copyWith(
-            color: AppColors.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -353,7 +252,11 @@ class _RegisterPageState extends State<RegisterPage> {
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             filled: true,
-            fillColor: AppColors.surface,
+            fillColor: colorScheme.surface,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderSide: BorderSide(color: colorScheme.primary, width: 2),
+            ),
           ),
           items: _microfinancieras.map((microfinanciera) {
             return DropdownMenuItem<Microfinanciera>(
@@ -468,7 +371,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   child: Text(
                     'Acepto los términos y condiciones y declaro que la información proporcionada es correcta.',
                     style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.onSurfaceVariant,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -489,13 +392,14 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildSignInPrompt() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           '¿Ya tienes una cuenta?',
           style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         TextButton(
@@ -615,14 +519,16 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _showErrorSnackBar(String message) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.error,
+        backgroundColor: colorScheme.error,
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'Cerrar',
-          textColor: AppColors.onError,
+          textColor: colorScheme.onError,
           onPressed: () {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
           },

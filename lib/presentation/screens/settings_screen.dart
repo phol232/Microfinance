@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../bloc/auth/auth_bloc.dart';
@@ -9,7 +13,6 @@ import '../bloc/auth/auth_state.dart';
 import '../bloc/profile/profile_bloc.dart';
 import '../bloc/profile/profile_state.dart';
 import '../providers/theme_provider.dart';
-import '../theme/app_colors.dart';
 import 'profile_screen.dart';
 import 'location_map_screen.dart';
 
@@ -23,16 +26,42 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifications = true;
   bool _biometrics = false;
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        final version = info.version;
+        final build = info.buildNumber;
+        final display = build.isNotEmpty && build != version
+            ? '$version+$build'
+            : version;
+        setState(() {
+          _appVersion = display;
+        });
+      }
+    } catch (_) {
+      // Ignorar error
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Configuración'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -45,16 +74,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Personaliza tu experiencia en la aplicación',
               style: TextStyle(
                 fontSize: screenWidth * 0.04, // 4% del ancho
-                color: Colors.grey,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             SizedBox(height: screenHeight * 0.03), // 3% de la altura
-
             // Perfil de Usuario
             _buildProfileSection(),
 
             SizedBox(height: screenHeight * 0.02), // 2% de la altura
-
             // Apariencia
             _buildSectionCard(
               title: 'Apariencia',
@@ -89,7 +116,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             SizedBox(height: screenHeight * 0.02), // 2% de la altura
-
             // Notificaciones
             _buildSectionCard(
               title: 'Notificaciones',
@@ -118,7 +144,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             SizedBox(height: screenHeight * 0.02), // 2% de la altura
-
             // Seguridad
             _buildSectionCard(
               title: 'Seguridad',
@@ -157,7 +182,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             SizedBox(height: screenHeight * 0.02), // 2% de la altura
-
             // Acerca de
             _buildSectionCard(
               title: 'Acerca de',
@@ -179,12 +203,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.help_outline,
                   title: 'Ayuda y Soporte',
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
+                  onTap: () => _showSupportSheet(context),
                 ),
                 _buildListTile(
                   icon: Icons.info_outlined,
                   title: 'Versión',
-                  subtitle: '1.0.0',
+                  subtitle: _appVersion.isEmpty ? null : _appVersion,
                   trailing: null,
                   onTap: null,
                 ),
@@ -192,39 +216,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             SizedBox(height: screenHeight * 0.03), // 3% de la altura
-
             // Botón de ver ubicación
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _navigateToLocationMap(),
-                icon: const Icon(Icons.location_on, color: AppColors.primary),
+                icon: Icon(Icons.location_on, color: colorScheme.primary),
                 label: Text(
                   'Ver Ubicación',
                   style: TextStyle(
-                    color: AppColors.primary,
+                    color: colorScheme.primary,
                     fontSize: screenWidth * 0.04, // 4% del ancho
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
-                  side: const BorderSide(color: AppColors.primary),
+                  side: BorderSide(color: colorScheme.primary),
                 ),
               ),
             ),
 
             SizedBox(height: screenHeight * 0.02), // 2% de la altura
-
             // Botón de cerrar sesión
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _showLogoutDialog(),
-                icon: const Icon(Icons.logout, color: Colors.red),
+                icon: Icon(Icons.logout, color: colorScheme.error),
                 label: Text(
                   'Cerrar Sesión',
                   style: TextStyle(
-                    color: Colors.red,
+                    color: colorScheme.error,
                     fontSize: screenWidth * 0.04, // 4% del ancho
                   ),
                 ),
@@ -243,6 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildProfileSection() {
+    final colorScheme = Theme.of(context).colorScheme;
     return BlocBuilder<ProfileBloc, ProfileState>(
       builder: (context, profileState) {
         final profile = profileState.profile;
@@ -255,25 +278,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  backgroundImage:
-                      profile?.photoUrl != null && profile!.photoUrl!.isNotEmpty
-                      ? NetworkImage(profile.photoUrl!)
-                      : null,
-                  child: profile?.photoUrl == null || profile!.photoUrl!.isEmpty
-                      ? Text(
-                          profile?.firstName.isNotEmpty == true
-                              ? profile!.firstName[0].toUpperCase()
-                              : 'U',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      : null,
+                Builder(
+                  builder: (_) {
+                    final Uint8List? photoBytes = _decodeBase64Image(
+                      profile?.photoBase64,
+                    );
+                    final String? photoUrl = profile?.photoUrl;
+                    ImageProvider? avatarImage;
+
+                    if (photoBytes != null) {
+                      avatarImage = MemoryImage(photoBytes);
+                    } else if (photoUrl != null && photoUrl.isNotEmpty) {
+                      avatarImage = NetworkImage(photoUrl);
+                    }
+
+                    return CircleAvatar(
+                      radius: 30,
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.1,
+                      ),
+                      backgroundImage: avatarImage,
+                      child: avatarImage == null
+                          ? Text(
+                              profile?.firstName.isNotEmpty == true
+                                  ? profile!.firstName[0].toUpperCase()
+                                  : 'U',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            )
+                          : null,
+                    );
+                  },
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -290,7 +328,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 4),
                       Text(
                         profile?.email ?? user?.email ?? '',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -329,7 +370,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
         padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
@@ -339,8 +381,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               children: [
                 Icon(
-                  icon, 
-                  color: AppColors.primary, 
+                  icon,
+                  color: colorScheme.primary,
                   size: screenWidth * 0.06, // 6% del ancho
                 ),
                 SizedBox(width: screenWidth * 0.03), // 3% del ancho
@@ -349,6 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(
                     fontSize: screenWidth * 0.045, // 4.5% del ancho
                     fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -369,31 +412,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     final screenWidth = MediaQuery.of(context).size.width;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
         padding: EdgeInsets.all(screenWidth * 0.02), // 2% del ancho
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(screenWidth * 0.02), // 2% del ancho
+          color: colorScheme.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(
+            screenWidth * 0.02,
+          ), // 2% del ancho
         ),
         child: Icon(
-          icon, 
-          color: AppColors.primary, 
+          icon,
+          color: colorScheme.primary,
           size: screenWidth * 0.06, // 6% del ancho
         ),
       ),
       title: Text(
-        title, 
+        title,
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: screenWidth * 0.04, // 4% del ancho
+          color: colorScheme.onSurface,
         ),
       ),
       subtitle: Text(
-        subtitle, 
-        style: TextStyle(fontSize: screenWidth * 0.032), // 3.2% del ancho
+        subtitle,
+        style: TextStyle(
+          fontSize: screenWidth * 0.032, // 3.2% del ancho
+          color: colorScheme.onSurfaceVariant,
+        ),
       ),
       trailing: Switch(value: value, onChanged: onChanged),
     );
@@ -407,32 +457,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     VoidCallback? onTap,
   }) {
     final screenWidth = MediaQuery.of(context).size.width;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
         padding: EdgeInsets.all(screenWidth * 0.02), // 2% del ancho
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(screenWidth * 0.02), // 2% del ancho
+          color: colorScheme.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(
+            screenWidth * 0.02,
+          ), // 2% del ancho
         ),
         child: Icon(
-          icon, 
-          color: AppColors.primary, 
+          icon,
+          color: colorScheme.primary,
           size: screenWidth * 0.06, // 6% del ancho
         ),
       ),
       title: Text(
-        title, 
+        title,
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: screenWidth * 0.04, // 4% del ancho
+          color: colorScheme.onSurface,
         ),
       ),
       subtitle: subtitle != null
           ? Text(
-              subtitle, 
-              style: TextStyle(fontSize: screenWidth * 0.032), // 3.2% del ancho
+              subtitle,
+              style: TextStyle(
+                fontSize: screenWidth * 0.032, // 3.2% del ancho
+                color: colorScheme.onSurfaceVariant,
+              ),
             )
           : null,
       trailing: trailing,
@@ -443,16 +500,140 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _navigateToLocationMap() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const LocationMapScreen(),
+      MaterialPageRoute(builder: (context) => const LocationMapScreen()),
+    );
+  }
+
+  void _showSupportSheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: colorScheme.primary.withOpacity(0.1),
+                    child: Icon(
+                      Icons.support_agent,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Soporte Técnico',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _supportRow(
+                icon: Icons.person_outline,
+                label: 'Nombre',
+                value: 'Phol Edwin Taquiri Rojas',
+                colorScheme: colorScheme,
+              ),
+              _supportRow(
+                icon: Icons.email_outlined,
+                label: 'Correo',
+                value: 'edwinrojastaquiri@gmail.com',
+                colorScheme: colorScheme,
+              ),
+              _supportRow(
+                icon: Icons.phone_outlined,
+                label: 'Teléfono',
+                value: '934866486',
+                colorScheme: colorScheme,
+              ),
+              if (_appVersion.isNotEmpty)
+                _supportRow(
+                  icon: Icons.info_outline,
+                  label: 'Versión',
+                  value: _appVersion,
+                  colorScheme: colorScheme,
+                ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _supportRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required ColorScheme colorScheme,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: colorScheme.primary, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _openLocationInMaps() async {
     const String address = "Jr. Tacna 340, Huancayo 12004";
-    final String googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}";
-    
+    final String googleMapsUrl =
+        "https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}";
+
     try {
       final Uri uri = Uri.parse(googleMapsUrl);
       if (await canLaunchUrl(uri)) {
@@ -503,5 +684,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Uint8List? _decodeBase64Image(String? base64String) {
+    if (base64String == null || base64String.isEmpty) return null;
+    try {
+      return base64Decode(base64String);
+    } catch (_) {
+      return null;
+    }
   }
 }

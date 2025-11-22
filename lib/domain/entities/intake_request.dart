@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'common.dart';
 
 class IntakeRequest {
@@ -25,37 +24,6 @@ class IntakeRequest {
     required this.createdAt,
     required this.updatedAt,
   });
-
-  factory IntakeRequest.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-
-    return IntakeRequest(
-      id: doc.id,
-      status: data['status'] ?? '',
-      contact: ContactInfo.fromMap(data['contact'] ?? {}),
-      applicant: ApplicantInfo.fromMap(data['applicant'] ?? {}),
-      requested: RequestedInfo.fromMap(data['requested'] ?? {}),
-      consent: ConsentInfo.fromMap(data['consent'] ?? {}),
-      routing: RoutingInfo.fromMap(data['routing'] ?? {}),
-      riskFlags: RiskFlags.fromMap(data['risk_flags'] ?? {}),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'status': status,
-      'contact': contact.toMap(),
-      'applicant': applicant.toMap(),
-      'requested': requested.toMap(),
-      'consent': consent.toMap(),
-      'routing': routing.toMap(),
-      'risk_flags': riskFlags.toMap(),
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-    };
-  }
 }
 
 class ContactInfo {
@@ -129,7 +97,9 @@ class ConsentInfo {
     return ConsentInfo(
       accepted: map['accepted'] ?? false,
       version: map['version'] ?? '',
-      at: (map['at'] as Timestamp).toDate(),
+      at: (map['at'] is DateTime)
+          ? map['at'] as DateTime
+          : DateTime.tryParse(map['at']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 
@@ -137,7 +107,7 @@ class ConsentInfo {
     return {
       'accepted': accepted,
       'version': version,
-      'at': Timestamp.fromDate(at),
+      'at': at,
     };
   }
 }

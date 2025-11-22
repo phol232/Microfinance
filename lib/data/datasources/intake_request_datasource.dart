@@ -1,8 +1,9 @@
 import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:mobile/core/tenant/tenant_resolver.dart';
+import '../../domain/services/tenant_resolver.dart';
 import '../../domain/entities/loan_application.dart';
+import '../models/loan_application_dto.dart';
 
 class IntakeRequestDataSource {
   final FirebaseFirestore _firestore;
@@ -35,7 +36,7 @@ class IntakeRequestDataSource {
       return snapshot.docs
           .map((doc) {
             try {
-              return LoanApplication.fromFirestore(doc);
+              return LoanApplicationDto.fromFirestore(doc).toDomain();
             } catch (error, stackTrace) {
               developer.log(
                 'Error al parsear documento ${doc.id}',
@@ -67,7 +68,7 @@ class IntakeRequestDataSource {
         .orderBy('createdAt', descending: true)
         .get();
     return snapshot.docs
-        .map((doc) => LoanApplication.fromFirestore(doc))
+        .map((doc) => LoanApplicationDto.fromFirestore(doc).toDomain())
         .toList();
   }
 
@@ -77,7 +78,7 @@ class IntakeRequestDataSource {
       return snapshot.docs
           .map((doc) {
             try {
-              return LoanApplication.fromFirestore(doc);
+              return LoanApplicationDto.fromFirestore(doc).toDomain();
             } catch (error, stackTrace) {
               developer.log(
                 'Error al parsear documento ${doc.id}',
@@ -107,7 +108,7 @@ class IntakeRequestDataSource {
     try {
       final doc = await _collection.doc(id).get();
       if (!doc.exists) return null;
-      return LoanApplication.fromFirestore(doc);
+      return LoanApplicationDto.fromFirestore(doc).toDomain();
     } catch (error, stackTrace) {
       developer.log(
         'Error obteniendo solicitud $id',
@@ -126,7 +127,7 @@ class IntakeRequestDataSource {
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
-              .map((doc) => LoanApplication.fromFirestore(doc))
+              .map((doc) => LoanApplicationDto.fromFirestore(doc).toDomain())
               .toList(),
         );
   }
@@ -138,7 +139,7 @@ class IntakeRequestDataSource {
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
-              .map((doc) => LoanApplication.fromFirestore(doc))
+              .map((doc) => LoanApplicationDto.fromFirestore(doc).toDomain())
               .toList(),
         );
   }

@@ -6,8 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:mobile/presentation/bloc/card/card_bloc.dart';
 import 'package:mobile/presentation/bloc/transaction/transaction_bloc.dart';
 import 'package:mobile/presentation/models/cart_item.dart';
-import 'package:mobile/presentation/services/cart_service.dart';
-import 'package:mobile/presentation/services/payment_card_service.dart';
+import 'package:mobile/infrastructure/services/cart_service.dart';
+import 'package:mobile/infrastructure/services/payment_card_service.dart';
 import 'package:mobile/presentation/utils/product_colors.dart';
 import 'package:mobile/presentation/widgets/cart_bottom_sheet.dart';
 
@@ -34,8 +34,9 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'es_PE',
-    symbol: 'S/',
+    symbol: 'S/ ',
     decimalDigits: 2,
+    customPattern: '¤#,##0.00',
   );
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
 
@@ -109,16 +110,17 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
     return schedule;
   }
 
-  Color _getStatusColor(String status) {
+  Color _getStatusColor(String status, BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (status.toLowerCase()) {
       case 'paid':
-        return Colors.green;
+        return const Color(0xFF4CAF50); // Success green
       case 'overdue':
-        return Colors.red;
+        return colorScheme.error;
       case 'pending':
-        return Colors.orange;
+        return const Color(0xFFFF9800); // Warning orange
       default:
-        return Colors.grey;
+        return colorScheme.onSurfaceVariant;
     }
   }
 
@@ -210,15 +212,16 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
     _exitMultiSelectMode();
 
     if (!mounted) return;
+    final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           '$added cuota${added > 1 ? 's' : ''} agregada${added > 1 ? 's' : ''} al carrito',
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF4CAF50), // Success green
         action: SnackBarAction(
           label: 'Ver Carrito',
-          textColor: Colors.white,
+          textColor: colorScheme.onPrimary,
           onPressed: () {
             showModalBottomSheet(
               context: context,
@@ -259,6 +262,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
     final productName = productInfo['name'] ?? 'Crédito';
 
     final themeColor = ProductColors.getColorByCode(productCode);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return BlocListener<TransactionBloc, TransactionState>(
       listener: (context, state) {
@@ -273,7 +277,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
           return false;
         },
         child: Scaffold(
-          backgroundColor: Colors.grey[50],
+          backgroundColor: colorScheme.surface,
           appBar: AppBar(
             title: Text(
               _isMultiSelectMode
@@ -281,7 +285,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                   : 'Cronograma de Pagos',
             ),
             backgroundColor: themeColor,
-            foregroundColor: Colors.white,
+            foregroundColor: colorScheme.onPrimary,
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -331,12 +335,12 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: colorScheme.onPrimary.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           ProductColors.getIconByCode(productCode),
-                          color: Colors.white,
+                          color: colorScheme.onPrimary,
                           size: 20,
                         ),
                       ),
@@ -347,8 +351,8 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                           children: [
                             Text(
                               productName,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: colorScheme.onPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -358,7 +362,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                             Text(
                               displayName,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
+                                color: colorScheme.onPrimary.withOpacity(0.9),
                                 fontSize: 12,
                               ),
                               maxLines: 1,
@@ -374,14 +378,14 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                           Text(
                             'Monto',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
+                              color: colorScheme.onPrimary.withOpacity(0.8),
                               fontSize: 10,
                             ),
                           ),
                           Text(
                             _currencyFormat.format(amount),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: colorScheme.onPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
@@ -418,7 +422,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                           )
                         : null,
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: colorScheme.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -448,14 +452,14 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                             Icon(
                               Icons.error_outline,
                               size: 64,
-                              color: Colors.grey[400],
+                              color: colorScheme.error,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'Error al cargar el cronograma',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey[600],
+                                color: colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -463,7 +467,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                               '${snapshot.error}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[500],
+                                color: colorScheme.onSurfaceVariant,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -494,14 +498,14 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                             Icon(
                               Icons.schedule,
                               size: 64,
-                              color: Colors.grey[400],
+                              color: colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'No hay cronograma disponible',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey[600],
+                                color: colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -517,14 +521,14 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                             Icon(
                               Icons.search_off,
                               size: 64,
-                              color: Colors.grey[400],
+                              color: colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'No se encontraron cuotas',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey[600],
+                                color: colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -532,7 +536,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                               'Intenta con otro término de búsqueda',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[500],
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -555,6 +559,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                           ),
                       itemCount: filteredSchedule.length,
                       itemBuilder: (context, index) {
+                        final colorScheme = Theme.of(context).colorScheme;
                         final installment = filteredSchedule[index];
                         final status = (installment['status'] as String);
                         final isPaid = status.toLowerCase() == 'paid';
@@ -576,7 +581,10 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                               side: BorderSide(
                                 color: _isMultiSelectMode && isSelected
                                     ? themeColor
-                                    : _getStatusColor(status).withOpacity(0.3),
+                                    : _getStatusColor(
+                                        status,
+                                        context,
+                                      ).withOpacity(0.3),
                                 width: _isMultiSelectMode && isSelected ? 2 : 1,
                               ),
                             ),
@@ -605,14 +613,17 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: _getStatusColor(status),
+                                              color: _getStatusColor(
+                                                status,
+                                                context,
+                                              ),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               _getStatusText(status),
-                                              style: const TextStyle(
-                                                color: Colors.white,
+                                              style: TextStyle(
+                                                color: colorScheme.onPrimary,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w500,
                                               ),
@@ -640,7 +651,7 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                                           Icon(
                                             Icons.calendar_today,
                                             size: 12,
-                                            color: Colors.grey[600],
+                                            color: colorScheme.onSurfaceVariant,
                                           ),
                                           const SizedBox(width: 4),
                                           Expanded(
@@ -650,7 +661,8 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                                               ),
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: Colors.grey[600],
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
                                               ),
                                             ),
                                           ),
@@ -662,14 +674,14 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                                         'Capital: ${_currencyFormat.format(installment['principal'])}',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.grey[600],
+                                          color: colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       Text(
                                         'Interés: ${_currencyFormat.format(installment['interest'])}',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.grey[600],
+                                          color: colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       const Spacer(),
@@ -685,15 +697,16 @@ class _LoanScheduleScreenState extends State<LoanScheduleScreen> {
                                                       installment['id'],
                                                 );
                                             final bg = isPaid
-                                                ? Colors.grey[300]
+                                                ? colorScheme
+                                                      .surfaceContainerHighest
                                                 : isInCart
-                                                ? Colors.orange
+                                                ? const Color(0xFFFF9800)
                                                 : (isOverdue
-                                                      ? Colors.red
+                                                      ? colorScheme.error
                                                       : themeColor);
                                             final fg = isPaid
-                                                ? Colors.grey[600]
-                                                : Colors.white;
+                                                ? colorScheme.onSurfaceVariant
+                                                : colorScheme.onPrimary;
 
                                             return SizedBox(
                                               width: double.infinity,

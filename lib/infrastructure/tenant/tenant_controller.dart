@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'tenant_resolver.dart';
+import '../../domain/services/tenant_resolver.dart';
 import 'tenant_storage.dart';
 
 class TenantController extends ChangeNotifier implements TenantResolver {

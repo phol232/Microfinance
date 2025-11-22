@@ -1,14 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/loan_application.dart';
+import '../models/loan_application_dto.dart';
 
 class LoanApplicationDataSource {
   final FirebaseFirestore _firestore;
 
   LoanApplicationDataSource({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Obtener todas las aplicaciones de una microfinanciera
-  Future<List<LoanApplication>> getAllApplications(String microfinancieraId) async {
+  Future<List<LoanApplication>> getAllApplications(
+    String microfinancieraId,
+  ) async {
     try {
       final snapshot = await _firestore
           .collection('microfinancieras')
@@ -18,14 +20,17 @@ class LoanApplicationDataSource {
           .get();
 
       return snapshot.docs
-          .map((doc) => LoanApplication.fromFirestore(doc))
+          .map(
+            (doc) => LoanApplicationDto.fromFirestore(
+              doc as DocumentSnapshot<Map<String, dynamic>>,
+            ).toDomain(),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error obteniendo aplicaciones: $e');
     }
   }
 
-  /// Obtener aplicaciones asignadas a un agente específico
   Future<List<LoanApplication>> getAssignedToAgent(
     String microfinancieraId,
     String agentId, {
@@ -46,14 +51,17 @@ class LoanApplicationDataSource {
       final snapshot = await query.get();
 
       return snapshot.docs
-          .map((doc) => LoanApplication.fromFirestore(doc))
+          .map(
+            (doc) => LoanApplicationDto.fromFirestore(
+              doc as DocumentSnapshot<Map<String, dynamic>>,
+            ).toDomain(),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error obteniendo aplicaciones del agente: $e');
     }
   }
 
-  /// Obtener aplicaciones por estado
   Future<List<LoanApplication>> getApplicationsByStatus(
     String microfinancieraId,
     List<String> statuses,
@@ -69,14 +77,17 @@ class LoanApplicationDataSource {
           .get();
 
       return snapshot.docs
-          .map((doc) => LoanApplication.fromFirestore(doc))
+          .map(
+            (doc) => LoanApplicationDto.fromFirestore(
+              doc as DocumentSnapshot<Map<String, dynamic>>,
+            ).toDomain(),
+          )
           .toList();
     } catch (e) {
       throw Exception('Error obteniendo aplicaciones por estado: $e');
     }
   }
 
-  /// Obtener aplicación específica por ID
   Future<LoanApplication?> getApplicationById(
     String microfinancieraId,
     String applicationId,
@@ -91,13 +102,12 @@ class LoanApplicationDataSource {
 
       if (!doc.exists) return null;
 
-      return LoanApplication.fromFirestore(doc);
+      return LoanApplicationDto.fromFirestore(doc).toDomain();
     } catch (e) {
       throw Exception('Error obteniendo aplicación: $e');
     }
   }
 
-  /// Tomar posesión de una aplicación
   Future<void> takeOwnership(
     String microfinancieraId,
     String applicationId,
@@ -115,7 +125,6 @@ class LoanApplicationDataSource {
 
       final transitionsRef = appRef.collection('transitions').doc();
 
-      // Actualizar la aplicación
       batch.update(appRef, {
         'routing.agentId': agentId,
         'routing.assignedAt': FieldValue.serverTimestamp(),
@@ -123,7 +132,6 @@ class LoanApplicationDataSource {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Registrar transición
       batch.set(transitionsRef, {
         'from': 'routed',
         'to': 'in_review',
@@ -138,7 +146,6 @@ class LoanApplicationDataSource {
     }
   }
 
-  /// Actualizar estado de aplicación
   Future<void> updateApplicationStatus(
     String microfinancieraId,
     String applicationId,
@@ -156,7 +163,6 @@ class LoanApplicationDataSource {
           .collection('loanApplications')
           .doc(applicationId);
 
-      // Obtener estado actual
       final currentDoc = await appRef.get();
       if (!currentDoc.exists) {
         throw Exception('Aplicación no encontrada');
@@ -164,7 +170,6 @@ class LoanApplicationDataSource {
 
       final currentStatus = currentDoc.data()?['status'] ?? '';
 
-      // Actualizar aplicación
       final updateData = {
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -173,7 +178,6 @@ class LoanApplicationDataSource {
 
       batch.update(appRef, updateData);
 
-      // Registrar transición
       if (currentStatus != newStatus) {
         final transitionsRef = appRef.collection('transitions').doc();
         batch.set(transitionsRef, {
@@ -191,7 +195,6 @@ class LoanApplicationDataSource {
     }
   }
 
-  /// Stream de aplicaciones asignadas a un agente (tiempo real)
   Stream<List<LoanApplication>> watchAssignedApplications(
     String microfinancieraId,
     String agentId,
@@ -203,12 +206,17 @@ class LoanApplicationDataSource {
         .where('routing.agentId', isEqualTo: agentId)
         .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => LoanApplication.fromFirestore(doc))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => LoanApplicationDto.fromFirestore(
+                  doc as DocumentSnapshot<Map<String, dynamic>>,
+                ).toDomain(),
+              )
+              .toList(),
+        );
   }
 
-  /// Stream de aplicaciones por estado (tiempo real)
   Stream<List<LoanApplication>> watchApplicationsByStatus(
     String microfinancieraId,
     List<String> statuses,
@@ -221,15 +229,27 @@ class LoanApplicationDataSource {
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => LoanApplication.fromFirestore(doc))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => LoanApplicationDto.fromFirestore(
+                  doc as DocumentSnapshot<Map<String, dynamic>>,
+                ).toDomain(),
+              )
+              .toList(),
+        );
   }
 
-  /// Obtener estadísticas básicas
   Future<Map<String, int>> getApplicationStats(String microfinancieraId) async {
     try {
-      final statuses = ['received', 'routed', 'in_review', 'approved', 'rejected', 'disbursed'];
+      final statuses = [
+        'received',
+        'routed',
+        'in_review',
+        'approved',
+        'rejected',
+        'disbursed',
+      ];
       final stats = <String, int>{};
 
       for (final status in statuses) {
@@ -249,7 +269,6 @@ class LoanApplicationDataSource {
     }
   }
 
-  /// Crear nueva aplicación de préstamo
   Future<String> createApplication(
     String microfinancieraId,
     LoanApplication application,
@@ -261,7 +280,6 @@ class LoanApplicationDataSource {
           .collection('loanApplications')
           .doc();
 
-      // Crear la aplicación con el ID generado
       final applicationWithId = LoanApplication(
         id: docRef.id,
         userId: application.userId,
@@ -283,7 +301,7 @@ class LoanApplicationDataSource {
         updatedAt: DateTime.now(),
       );
 
-      await docRef.set(applicationWithId.toFirestore());
+      await docRef.set(LoanApplicationDto(applicationWithId).toFirestore());
 
       return docRef.id;
     } catch (e) {
@@ -291,7 +309,6 @@ class LoanApplicationDataSource {
     }
   }
 
-  /// Obtener estadísticas por agente
   Future<Map<String, int>> getAgentStats(
     String microfinancieraId,
     String agentId,

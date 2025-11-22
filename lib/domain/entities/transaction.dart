@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class FinancialTransaction {
   const FinancialTransaction({
     required this.id,
@@ -26,44 +24,4 @@ class FinancialTransaction {
   final String branchId;
   final DateTime createdAt;
   final Map<String, dynamic>? metadata;
-
-  factory FinancialTransaction.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final data = doc.data() ?? <String, dynamic>{};
-    return FinancialTransaction(
-      id: doc.id,
-      mfId: data['mfId'] ?? '',
-      type: data['type'] ?? '',
-      refType: data['refType'] ?? '',
-      refId: data['refId'] ?? '',
-      debit: (data['debit'] ?? 0).toDouble(),
-      credit: (data['credit'] ?? 0).toDouble(),
-      currency: data['currency'] ?? 'PEN',
-      branchId: data['branchId'] ?? '',
-      createdAt: _parseTimestamp(data['createdAt']),
-      metadata: data['metadata'] as Map<String, dynamic>?,
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'mfId': mfId,
-      'type': type,
-      'refType': refType,
-      'refId': refId,
-      'debit': debit,
-      'credit': credit,
-      'currency': currency,
-      'branchId': branchId,
-      'createdAt': Timestamp.fromDate(createdAt),
-      if (metadata != null) 'metadata': metadata,
-    };
-  }
-
-  static DateTime _parseTimestamp(dynamic value) {
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
-    return DateTime.fromMillisecondsSinceEpoch(0);
-  }
 }

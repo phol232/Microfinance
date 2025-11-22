@@ -1,5 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../domain/entities/user_profile.dart';
 import '../bloc/auth/auth_bloc.dart';
@@ -29,9 +36,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _dniController = TextEditingController();
   final _phoneController = TextEditingController();
   final _photoUrlController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   UserProfile? _currentProfile;
   bool _isEditing = false;
+  String? _photoBase64;
+  Uint8List? _previewPhotoBytes;
+  bool _isPickingImage = false;
 
   @override
   void initState() {
@@ -64,13 +75,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _dniController.text = profile.dni ?? '';
     _phoneController.text = profile.phone ?? '';
     _photoUrlController.text = profile.photoUrl ?? '';
+    _photoBase64 = profile.photoBase64;
+    _previewPhotoBytes = _decodeBase64Image(profile.photoBase64);
+  }
+
+  Uint8List? _decodeBase64Image(String? base64String) {
+    if (base64String == null || base64String.isEmpty) return null;
+    try {
+      return base64Decode(base64String);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return MultiBlocListener(
       listeners: [
         BlocListener<AuthBloc, AuthState>(
@@ -129,7 +153,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return Scaffold(
             appBar: AppBar(
               title: const Text('Mi Perfil'),
-              backgroundColor: Colors.transparent,
+              backgroundColor: colorScheme.surface,
+              foregroundColor: colorScheme.onSurface,
+              systemOverlayStyle: isDark
+                  ? SystemUiOverlayStyle.light.copyWith(
+                      statusBarColor: colorScheme.surface,
+                      systemNavigationBarColor: colorScheme.surface,
+                    )
+                  : SystemUiOverlayStyle.dark.copyWith(
+                      statusBarColor: colorScheme.surface,
+                      systemNavigationBarColor: colorScheme.surface,
+                    ),
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -137,15 +171,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             body: Container(
-              decoration: const BoxDecoration(
-                gradient: AppColors.surfaceGradient,
-              ),
+              color: colorScheme.surface,
               child: SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final bool isCompact = screenWidth <= 600; // Usando screenWidth
+                    final bool isCompact =
+                        screenWidth <= 600; // Usando screenWidth
                     final double horizontalPadding = isCompact
-                        ? screenWidth * 0.04 // 4% del ancho
+                        ? screenWidth *
+                              0.04 // 4% del ancho
                         : screenWidth * 0.08; // 8% del ancho
 
                     return SingleChildScrollView(
@@ -157,15 +191,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           // Header profesional con avatar y stats
                           _buildProfileHeader(),
-                          SizedBox(height: screenHeight * 0.04), // 4% de la altura
-
+                          SizedBox(
+                            height: screenHeight * 0.04,
+                          ), // 4% de la altura
                           // Información personal en cards elegantes
                           if (_isEditing)
                             _buildEditForm(isLoading: isLoading)
                           else
                             _buildProfileSections(),
 
-                          SizedBox(height: screenHeight * 0.06), // 6% de la altura
+                          SizedBox(
+                            height: screenHeight * 0.06,
+                          ), // 6% de la altura
                         ],
                       ),
                     );
@@ -183,15 +220,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileHeader() {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.01), // 1% del ancho
+      margin: EdgeInsets.symmetric(
+        horizontal: screenWidth * 0.01,
+      ), // 1% del ancho
       decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
+        gradient: LinearGradient(
+          colors: [colorScheme.primary, colorScheme.primaryContainer],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(screenWidth * 0.06), // 6% del ancho
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.2),
+            color: colorScheme.primary.withOpacity(0.2),
             blurRadius: screenWidth * 0.04, // 4% del ancho
             offset: Offset(0, screenHeight * 0.01), // 1% de la altura
           ),
@@ -204,28 +248,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Avatar con indicador de estado
             Stack(
               children: [
-                CircleAvatar(
-                  radius: screenWidth * 0.125, // 12.5% del ancho
-                  backgroundColor: AppColors.onPrimary.withValues(alpha: 0.2),
-                  backgroundImage:
-                      _currentProfile?.photoUrl != null &&
-                          _currentProfile!.photoUrl!.isNotEmpty
-                      ? NetworkImage(_currentProfile!.photoUrl!)
-                      : null,
-                  child:
-                      _currentProfile?.photoUrl == null ||
-                          _currentProfile!.photoUrl!.isEmpty
-                      ? Text(
-                          _currentProfile?.firstName.isNotEmpty == true
-                              ? _currentProfile!.firstName[0].toUpperCase()
-                              : 'U',
-                          style: AppTypography.headlineMedium.copyWith(
-                            color: AppColors.onPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: screenWidth * 0.08, // 8% del ancho
-                          ),
-                        )
-                      : null,
+                Builder(
+                  builder: (_) {
+                    final Uint8List? displayBytes =
+                        _previewPhotoBytes ??
+                        _decodeBase64Image(_currentProfile?.photoBase64);
+                    final String? photoUrl = _currentProfile?.photoUrl;
+                    ImageProvider? avatarImage;
+
+                    if (displayBytes != null) {
+                      avatarImage = MemoryImage(displayBytes);
+                    } else if (photoUrl != null && photoUrl.isNotEmpty) {
+                      avatarImage = NetworkImage(photoUrl);
+                    }
+
+                    return CircleAvatar(
+                      radius: screenWidth * 0.125, // 12.5% del ancho
+                      backgroundColor: colorScheme.onPrimary.withValues(
+                        alpha: 0.2,
+                      ),
+                      backgroundImage: avatarImage,
+                      child: avatarImage == null
+                          ? Text(
+                              _currentProfile?.firstName.isNotEmpty == true
+                                  ? _currentProfile!.firstName[0].toUpperCase()
+                                  : 'U',
+                              style: AppTypography.headlineMedium.copyWith(
+                                color: colorScheme.onPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: screenWidth * 0.08, // 8% del ancho
+                              ),
+                            )
+                          : null,
+                    );
+                  },
                 ),
                 Positioned(
                   bottom: 0,
@@ -233,12 +289,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Container(
                     padding: EdgeInsets.all(screenWidth * 0.01), // 1% del ancho
                     decoration: const BoxDecoration(
-                      color: Colors.green,
+                      color: Color(0xFF4CAF50), // Success green
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.check,
-                      color: Colors.white,
+                      color: colorScheme.onPrimary,
                       size: screenWidth * 0.04, // 4% del ancho
                     ),
                   ),
@@ -246,26 +302,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
             SizedBox(height: screenHeight * 0.025), // 2.5% de la altura
-
             // Nombre completo
             Text(
               _currentProfile?.fullName ?? 'Usuario',
               style: AppTypography.headlineMedium.copyWith(
-                color: AppColors.onPrimary,
+                color: colorScheme.onPrimary,
                 fontWeight: FontWeight.bold,
                 fontSize: screenWidth * 0.055, // 5.5% del ancho
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: screenHeight * 0.005), // 0.5% de la altura
-
             // Email con icono
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.email_outlined,
-                  color: AppColors.onPrimary.withValues(alpha: 0.8),
+                  color: colorScheme.onPrimary.withValues(alpha: 0.8),
                   size: screenWidth * 0.04, // 4% del ancho
                 ),
                 SizedBox(width: screenWidth * 0.02), // 2% del ancho
@@ -273,7 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Text(
                     _currentProfile?.email ?? '',
                     style: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.onPrimary.withValues(alpha: 0.9),
+                      color: colorScheme.onPrimary.withValues(alpha: 0.9),
                       fontSize: screenWidth * 0.035, // 3.5% del ancho
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -283,7 +337,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
 
             SizedBox(height: screenHeight * 0.025), // 2.5% de la altura
-
             // Stats row
             _buildStatsRow(),
           ],
@@ -295,14 +348,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildStatsRow() {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: screenWidth * 0.04, // 4% del ancho
         vertical: screenHeight * 0.015, // 1.5% de la altura
       ),
       decoration: BoxDecoration(
-        color: AppColors.onPrimary.withValues(alpha: 0.1),
+        color: colorScheme.onPrimary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(screenWidth * 0.04), // 4% del ancho
       ),
       child: Row(
@@ -325,19 +379,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildStatItem(String label, String value, IconData icon) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         Icon(
-          icon, 
-          color: AppColors.onPrimary.withValues(alpha: 0.9), 
+          icon,
+          color: colorScheme.onPrimary.withValues(alpha: 0.9),
           size: screenWidth * 0.05, // 5% del ancho
         ),
         SizedBox(height: screenHeight * 0.005), // 0.5% de la altura
         Text(
           value,
           style: AppTypography.titleSmall.copyWith(
-            color: AppColors.onPrimary,
+            color: colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: screenWidth * 0.035, // 3.5% del ancho
           ),
@@ -345,7 +400,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           label,
           style: AppTypography.bodySmall.copyWith(
-            color: AppColors.onPrimary.withValues(alpha: 0.8),
+            color: colorScheme.onPrimary.withValues(alpha: 0.8),
             fontSize: screenWidth * 0.03, // 3% del ancho
           ),
         ),
@@ -356,11 +411,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildVerticalDivider() {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       height: screenHeight * 0.05, // 5% de la altura
       width: screenWidth * 0.002, // 0.2% del ancho
-      color: AppColors.onPrimary.withValues(alpha: 0.3),
+      color: colorScheme.onPrimary.withValues(alpha: 0.3),
     );
   }
 
@@ -434,18 +490,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     required List<Widget> children,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         border: Border.all(
-          color: AppColors.outline.withValues(alpha: 0.2),
+          color: colorScheme.outline.withOpacity(0.2),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.outline.withValues(alpha: 0.1),
+            color: colorScheme.outline.withOpacity(0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -462,12 +519,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
+                    color: colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   ),
                   child: Icon(
                     icon,
-                    color: AppColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
                 ),
@@ -475,7 +532,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   title,
                   style: AppTypography.titleLarge.copyWith(
-                    color: AppColors.onSurface,
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -497,6 +554,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String value,
     required bool isEmpty,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
@@ -506,14 +564,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isEmpty
-                  ? AppColors.outline.withValues(alpha: 0.1)
-                  : AppColors.primary.withValues(alpha: 0.1),
+                  ? colorScheme.outline.withValues(alpha: 0.1)
+                  : colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
               size: 18,
-              color: isEmpty ? AppColors.onSurfaceVariant : AppColors.primary,
+              color: isEmpty
+                  ? colorScheme.onSurfaceVariant
+                  : colorScheme.primary,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -524,7 +584,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   label,
                   style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -533,8 +593,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   value,
                   style: AppTypography.bodyLarge.copyWith(
                     color: isEmpty
-                        ? AppColors.onSurfaceVariant
-                        : AppColors.onSurface,
+                        ? colorScheme.onSurfaceVariant
+                        : colorScheme.onSurface,
                     fontStyle: isEmpty ? FontStyle.italic : null,
                   ),
                 ),
@@ -547,18 +607,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildEditForm({required bool isLoading}) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         border: Border.all(
-          color: AppColors.outline.withValues(alpha: 0.2),
+          color: colorScheme.outline.withValues(alpha: 0.2),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.outline.withValues(alpha: 0.1),
+            color: colorScheme.outline.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -577,12 +638,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.edit_outlined,
-                      color: AppColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                       size: 20,
                     ),
                   ),
@@ -679,7 +740,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 controller: _photoUrlController,
                 prefixIcon: const Icon(Icons.photo_outlined),
                 keyboardType: TextInputType.url,
+                onChanged: (_) {
+                  if (_photoBase64 != null || _previewPhotoBytes != null) {
+                    setState(() {
+                      _photoBase64 = null;
+                      _previewPhotoBytes = null;
+                    });
+                  }
+                },
               ),
+              const SizedBox(height: AppSpacing.md),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: (isLoading || _isPickingImage)
+                          ? null
+                          : () => _pickImage(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: Text(
+                        _isPickingImage ? 'Abriendo cámara...' : 'Tomar foto',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: (isLoading || _isPickingImage)
+                          ? null
+                          : () => _pickImage(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(
+                        _isPickingImage ? 'Cargando...' : 'Elegir de galería',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_previewPhotoBytes != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  child: Image.memory(
+                    _previewPhotoBytes!,
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
 
               // Botones de acción
@@ -730,7 +840,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ============== BLoC Event Handlers ==============
+  Future<bool> _ensurePermission(ImageSource source) async {
+    final Permission permission;
+    if (source == ImageSource.camera) {
+      permission = Permission.camera;
+    } else {
+      if (Platform.isAndroid) {
+        final statusPhotos = await Permission.photos.request();
+        if (statusPhotos.isGranted) return true;
+        final statusStorage = await Permission.storage.request();
+        if (statusStorage.isGranted) return true;
+
+        if (statusPhotos.isPermanentlyDenied ||
+            statusStorage.isPermanentlyDenied ||
+            statusPhotos.isRestricted) {
+          _showSnackBar(
+            'Habilita el permiso de galería en Ajustes para continuar.',
+            isError: true,
+          );
+          await openAppSettings();
+        }
+        return false;
+      } else {
+        // iOS: solicitar lectura y, si aplica, escritura
+        final statusPhotos = await Permission.photos.request();
+        if (statusPhotos.isGranted) return true;
+        final statusAddOnly = await Permission.photosAddOnly.request();
+        if (statusAddOnly.isGranted) return true;
+
+        if (statusPhotos.isPermanentlyDenied ||
+            statusAddOnly.isPermanentlyDenied ||
+            statusPhotos.isRestricted) {
+          _showSnackBar(
+            'Habilita el permiso de fotos en Ajustes para continuar.',
+            isError: true,
+          );
+          await openAppSettings();
+        }
+        return false;
+      }
+    }
+
+    final status = await permission.request();
+    if (status.isGranted) return true;
+
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      _showSnackBar(
+        'Habilita el permiso desde Ajustes para continuar.',
+        isError: true,
+      );
+      await openAppSettings();
+    }
+    return false;
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    if (_isPickingImage) return;
+    setState(() {
+      _isPickingImage = true;
+    });
+
+    try {
+      final hasPermission = await _ensurePermission(source);
+      if (!hasPermission) return;
+
+      final pickedFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        imageQuality: 80,
+      );
+
+      if (pickedFile == null) return;
+
+      final bytes = await pickedFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      setState(() {
+        _photoBase64 = base64Image;
+        _previewPhotoBytes = bytes;
+        _photoUrlController.clear();
+      });
+    } catch (_) {
+      _showSnackBar(
+        'No se pudo cargar la imagen de perfil. Intenta nuevamente.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImage = false);
+      }
+    }
+  }
 
   void _updateProfile() {
     if (!_formKey.currentState!.validate()) return;
@@ -767,6 +967,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? _photoUrlController.text.trim()
           : null,
     };
+    if (_photoBase64 != null && _photoBase64!.isNotEmpty) {
+      updates['photoBase64'] = _photoBase64;
+      updates['fotoBase64'] = _photoBase64;
+    }
 
     // Disparar evento BLoC
     context.read<ProfileBloc>().add(
@@ -785,10 +989,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _cancelEdit() {
-    setState(() => _isEditing = false);
-    if (_currentProfile != null) {
-      _populateControllers(_currentProfile!);
-    }
+    setState(() {
+      _isEditing = false;
+      if (_currentProfile != null) {
+        _populateControllers(_currentProfile!);
+      } else {
+        _photoBase64 = null;
+        _previewPhotoBytes = null;
+      }
+    });
   }
 
   void _logout() {

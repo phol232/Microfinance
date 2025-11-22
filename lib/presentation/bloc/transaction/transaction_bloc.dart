@@ -1,7 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/transaction.dart';
-import 'package:mobile/core/services/transaction_service.dart';
+import '../../../data/models/transaction_dto.dart';
+import 'package:mobile/infrastructure/services/transaction_service.dart';
 
 // Events
 abstract class TransactionEvent extends Equatable {
@@ -277,7 +278,8 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
         print('🔍 TransactionBloc: Found ${transactions.length} transactions');
         
         final isPaid = transactions.any((transaction) {
-          final metadata = transaction.toFirestore()['metadata'] as Map<String, dynamic>?;
+          final metadata = FinancialTransactionDto.fromDomain(transaction)
+                  .toFirestore()['metadata'] as Map<String, dynamic>?;
           final isPaymentForInstallment = transaction.type == 'PAYMENT' && 
                  metadata?['installmentId'] == event.installmentId;
           

@@ -1,13 +1,17 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
-import 'package:flutter/foundation.dart';
+import 'package:fpdart/fpdart.dart';
 
+import '../../../domain/core/error/failures.dart';
 import '../../../domain/entities/account.dart';
-import '../../../domain/repositories/account_repository.dart';
 import '../../../domain/usecases/account/get_user_accounts_usecase.dart';
 import '../../../domain/usecases/account/get_account_by_id_usecase.dart';
 import '../../../domain/usecases/account/create_account_usecase.dart';
+import '../../../domain/usecases/account/update_account_usecase.dart';
+import '../../../domain/usecases/account/delete_account_usecase.dart';
+import '../../../domain/usecases/account/get_accounts_by_status_usecase.dart';
+import '../../../domain/usecases/account/get_accounts_by_microfinanciera_usecase.dart';
 // TODO: Implementar notificaciones más adelante
 // import '../../../services/notification_service.dart';
 // import '../../../domain/entities/notification.dart';
@@ -15,22 +19,34 @@ import 'account_event.dart';
 import 'account_state.dart';
 
 class AccountBloc extends Bloc<AccountEvent, AccountState> {
-  final AccountRepository _accountRepository;
   final CreateAccountUseCase _createAccountUseCase;
   final GetUserAccountsUseCase _getUserAccountsUseCase;
   final GetAccountByIdUseCase _getAccountByIdUseCase;
+  final UpdateAccountUseCase _updateAccountUseCase;
+  final DeleteAccountUseCase _deleteAccountUseCase;
+  final GetAccountsByMicrofinancieraUseCase
+  _getAccountsByMicrofinancieraUseCase;
+  final GetAccountsByStatusUseCase _getAccountsByStatusUseCase;
 
-  StreamSubscription<List<Account>>? _accountsSubscription;
+  StreamSubscription<Either<Failure, List<Account>>>? _accountsSubscription;
 
   AccountBloc({
-    required AccountRepository accountRepository,
     required CreateAccountUseCase createAccountUseCase,
     required GetUserAccountsUseCase getUserAccountsUseCase,
     required GetAccountByIdUseCase getAccountByIdUseCase,
-  }) : _accountRepository = accountRepository,
-       _createAccountUseCase = createAccountUseCase,
+    required UpdateAccountUseCase updateAccountUseCase,
+    required DeleteAccountUseCase deleteAccountUseCase,
+    required GetAccountsByMicrofinancieraUseCase
+    getAccountsByMicrofinancieraUseCase,
+    required GetAccountsByStatusUseCase getAccountsByStatusUseCase,
+  }) : _createAccountUseCase = createAccountUseCase,
        _getUserAccountsUseCase = getUserAccountsUseCase,
        _getAccountByIdUseCase = getAccountByIdUseCase,
+       _updateAccountUseCase = updateAccountUseCase,
+       _deleteAccountUseCase = deleteAccountUseCase,
+       _getAccountsByMicrofinancieraUseCase =
+           getAccountsByMicrofinancieraUseCase,
+       _getAccountsByStatusUseCase = getAccountsByStatusUseCase,
        super(const AccountInitial()) {
     on<AccountLoadUserAccounts>(_onAccountLoadUserAccounts);
     on<AccountCreate>(_onAccountCreate);
@@ -47,10 +63,13 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   ) async {
     try {
       emit(const AccountLoading());
-      
+
       await _accountsSubscription?.cancel();
       _accountsSubscription = _getUserAccountsUseCase(event.userId).listen(
-        (accounts) => emit(AccountLoaded(accounts)),
+        (result) => result.match(
+          (failure) => emit(AccountError(failure.message)),
+          (accounts) => emit(AccountLoaded(accounts)),
+        ),
         onError: (error) => emit(AccountError(error.toString())),
       );
     } catch (e) {
@@ -64,10 +83,13 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   ) async {
     try {
       emit(const AccountCreating());
-      
-      final accountId = await _createAccountUseCase(event.params);
-      emit(AccountCreated(accountId));
-      
+
+      final result = await _createAccountUseCase(event.params);
+      result.match(
+        (failure) => emit(AccountError(failure.message)),
+        (accountId) => emit(AccountCreated(accountId)),
+      );
+
       // TODO: Implementar notificaciones más adelante
       // Enviar notificación de cuenta creada
       // await NotificationService.sendNotification(
@@ -80,7 +102,7 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
       //     'accountType': event.params.accountType.name,
       //   },
       // );
-      
+
       // Recargar las cuentas del usuario
       add(AccountLoadUserAccounts(event.params.userId));
     } catch (e) {
@@ -94,10 +116,13 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   ) async {
     try {
       emit(const AccountUpdating());
-      
-      await _accountRepository.updateAccount(event.account);
-      emit(const AccountUpdated());
-      
+
+      final result = await _updateAccountUseCase(event.account);
+      result.match(
+        (failure) => emit(AccountError(failure.message)),
+        (_) => emit(const AccountUpdated()),
+      );
+
       // Recargar las cuentas del usuario
       add(AccountLoadUserAccounts(event.account.userId));
     } catch (e) {
@@ -111,9 +136,16 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   ) async {
     try {
       emit(const AccountDeleting());
-      
-      await _accountRepository.deleteAccount(event.accountId, event.microfinancieraId);
-      emit(const AccountDeleted());
+
+      final params = DeleteAccountParams(
+        accountId: event.accountId,
+        microfinancieraId: event.microfinancieraId,
+      );
+      final result = await _deleteAccountUseCase(params);
+      result.match(
+        (failure) => emit(AccountError(failure.message)),
+        (_) => emit(const AccountDeleted()),
+      );
     } catch (e) {
       emit(AccountError(e.toString()));
     }
@@ -125,17 +157,21 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   ) async {
     try {
       emit(const AccountLoading());
-      
+
       final params = GetAccountByIdParams(
         accountId: event.accountId,
         microfinancieraId: event.microfinancieraId,
       );
-      final account = await _getAccountByIdUseCase(params);
-      if (account != null) {
-        emit(AccountSingleLoaded(account));
-      } else {
-        emit(const AccountError('Cuenta no encontrada'));
-      }
+      final accountResult = await _getAccountByIdUseCase(params);
+      accountResult.match((failure) => emit(AccountError(failure.message)), (
+        account,
+      ) {
+        if (account != null) {
+          emit(AccountSingleLoaded(account));
+        } else {
+          emit(const AccountError('Cuenta no encontrada'));
+        }
+      });
     } catch (e) {
       emit(AccountError(e.toString()));
     }
@@ -147,12 +183,14 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   ) async {
     try {
       emit(const AccountLoading());
-      
+
       await _accountsSubscription?.cancel();
-      _accountsSubscription = _accountRepository
-          .getAccountsByMicrofinanciera(event.microfinancieraId)
-          .listen(
-            (accounts) => emit(AccountLoaded(accounts)),
+      _accountsSubscription =
+          _getAccountsByMicrofinancieraUseCase(event.microfinancieraId).listen(
+            (result) => result.match(
+              (failure) => emit(AccountError(failure.message)),
+              (accounts) => emit(AccountLoaded(accounts)),
+            ),
             onError: (error) => emit(AccountError(error.toString())),
           );
     } catch (e) {
@@ -166,12 +204,20 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   ) async {
     try {
       emit(const AccountLoading());
-      
+
       await _accountsSubscription?.cancel();
-      _accountsSubscription = _accountRepository
-          .getAccountsByStatus(event.userId, event.status, event.microfinancieraId)
-          .listen(
-            (accounts) => emit(AccountLoaded(accounts)),
+      _accountsSubscription =
+          _getAccountsByStatusUseCase(
+            GetAccountsByStatusParams(
+              userId: event.userId,
+              status: event.status,
+              microfinancieraId: event.microfinancieraId,
+            ),
+          ).listen(
+            (result) => result.match(
+              (failure) => emit(AccountError(failure.message)),
+              (accounts) => emit(AccountLoaded(accounts)),
+            ),
             onError: (error) => emit(AccountError(error.toString())),
           );
     } catch (e) {

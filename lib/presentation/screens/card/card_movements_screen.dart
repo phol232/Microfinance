@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../domain/entities/card.dart' as domain;
 import '../../../domain/entities/transaction.dart';
-import 'package:mobile/core/services/transaction_service.dart';
+import 'package:mobile/infrastructure/services/transaction_service.dart';
 import '../../../data/repositories/transaction_repository_impl.dart';
 import '../../../data/datasources/transaction_datasource.dart';
 import '../../../domain/usecases/transaction/process_payment_usecase.dart';
@@ -26,8 +26,9 @@ class CardMovementsScreen extends StatefulWidget {
 class _CardMovementsScreenState extends State<CardMovementsScreen> {
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'es_PE',
-    symbol: 'S/',
+    symbol: 'S/ ',
     decimalDigits: 2,
+    customPattern: '¤#,##0.00',
   );
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   final DateFormat _timeFormat = DateFormat('HH:mm');

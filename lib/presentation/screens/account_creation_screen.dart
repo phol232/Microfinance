@@ -409,8 +409,8 @@ class _AccountCreationScreenState extends State<AccountCreationScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Crear Nueva Cuenta'),
-          backgroundColor: const Color(0xFF1E88E5),
-          foregroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {

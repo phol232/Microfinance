@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
-import 'package:mobile/core/services/transaction_service.dart';
-import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/infrastructure/services/transaction_service.dart';
+import 'package:mobile/infrastructure/tenant/tenant_controller.dart';
 import 'package:mobile/data/datasources/transaction_datasource.dart';
 import 'package:mobile/data/repositories/transaction_repository_impl.dart';
 import 'package:mobile/domain/entities/card.dart' as domain;
@@ -20,9 +20,8 @@ import 'package:mobile/presentation/bloc/card/card_state.dart';
 import 'package:mobile/presentation/bloc/profile/profile_bloc.dart';
 import 'package:mobile/presentation/bloc/transaction/transaction_bloc.dart';
 import 'package:mobile/presentation/models/cart_item.dart';
-import 'package:mobile/presentation/services/cart_service.dart';
+import 'package:mobile/infrastructure/services/cart_service.dart';
 import 'package:mobile/presentation/utils/product_colors.dart';
-
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -35,8 +34,9 @@ class _CartScreenState extends State<CartScreen> {
   final CartService _cartService = CartService();
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'es_PE',
-    symbol: 'S/',
+    symbol: 'S/ ',
     decimalDigits: 2,
+    customPattern: '¤#,##0.00',
   );
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
 

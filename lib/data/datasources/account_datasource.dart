@@ -3,15 +3,16 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:mobile/core/tenant/tenant_resolver.dart';
+import '../../domain/services/tenant_resolver.dart';
 import '../../domain/entities/account.dart';
+import '../models/account_dto.dart';
 
 class AccountDataSource {
   AccountDataSource({
     FirebaseFirestore? firestore,
     required TenantResolver tenantResolver,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _tenantResolver = tenantResolver;
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _tenantResolver = tenantResolver;
 
   final FirebaseFirestore _firestore;
   final TenantResolver _tenantResolver;
@@ -28,8 +29,9 @@ class AccountDataSource {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map(
-            (snapshot) =>
-                snapshot.docs.map((doc) => Account.fromFirestore(doc)).toList(),
+            (snapshot) => snapshot.docs
+                .map((doc) => AccountDto.fromFirestore(doc).toDomain())
+                .toList(),
           );
     } catch (error, stackTrace) {
       _logError('getUserAccounts', error, stackTrace);
@@ -49,7 +51,7 @@ class AccountDataSource {
           .doc(accountId)
           .get();
       if (doc.exists && doc.data() != null) {
-        return Account.fromFirestore(doc);
+        return AccountDto.fromFirestore(doc).toDomain();
       }
       return null;
     } catch (error, stackTrace) {
@@ -68,14 +70,14 @@ class AccountDataSource {
 
       final interestRate = _getInterestRateByAccountType(account.accountType);
 
-      final accountData = account
-          .copyWith(
-            accountNumber: accountNumber,
-            cci: cci,
-            interestRate: interestRate,
-            createdAt: DateTime.now(),
-          )
-          .toFirestore();
+      final accountData = AccountDto.fromDomain(
+        account.copyWith(
+          accountNumber: accountNumber,
+          cci: cci,
+          interestRate: interestRate,
+          createdAt: DateTime.now(),
+        ),
+      ).toFirestore();
 
       final docRef = await _firestore
           .collection('microfinancieras')
@@ -96,14 +98,13 @@ class AccountDataSource {
           .doc(account.microfinancieraId)
           .collection('accounts')
           .doc(account.id)
-          .update(account.toFirestore());
+          .update(AccountDto.fromDomain(account).toFirestore());
     } catch (error, stackTrace) {
       _logError('updateAccount', error, stackTrace);
       rethrow;
     }
   }
 
-  /// Elimina una cuenta
   Future<void> deleteAccount(String accountId, String microfinancieraId) async {
     try {
       await _firestore
@@ -118,7 +119,6 @@ class AccountDataSource {
     }
   }
 
-  /// Obtiene cuentas por microfinanciera
   Stream<List<Account>> getAccountsByMicrofinanciera(String microfinancieraId) {
     try {
       return _firestore
@@ -128,8 +128,9 @@ class AccountDataSource {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map(
-            (snapshot) =>
-                snapshot.docs.map((doc) => Account.fromFirestore(doc)).toList(),
+            (snapshot) => snapshot.docs
+                .map((doc) => AccountDto.fromFirestore(doc).toDomain())
+                .toList(),
           );
     } catch (error, stackTrace) {
       _logError('getAccountsByMicrofinanciera', error, stackTrace);
@@ -137,7 +138,6 @@ class AccountDataSource {
     }
   }
 
-  /// Obtiene cuentas por estado
   Stream<List<Account>> getAccountsByStatus(
     String userId,
     AccountStatus status,
@@ -153,8 +153,9 @@ class AccountDataSource {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map(
-            (snapshot) =>
-                snapshot.docs.map((doc) => Account.fromFirestore(doc)).toList(),
+            (snapshot) => snapshot.docs
+                .map((doc) => AccountDto.fromFirestore(doc).toDomain())
+                .toList(),
           );
     } catch (error, stackTrace) {
       _logError('getAccountsByStatus', error, stackTrace);
@@ -162,18 +163,16 @@ class AccountDataSource {
     }
   }
 
-  /// Verifica si el usuario puede crear una nueva cuenta
   Future<bool> canCreateAccount(String userId) async {
     try {
       final count = await getUserAccountCount(userId);
-      return count < 5; // Límite máximo de 5 cuentas por usuario
+      return count < 5;
     } catch (error, stackTrace) {
       _logError('canCreateAccount', error, stackTrace);
       return false;
     }
   }
 
-  /// Obtiene el número de cuentas del usuario
   Future<int> getUserAccountCount(String userId) async {
     try {
       final microfinancieraId = _requireTenantId();
@@ -200,7 +199,6 @@ class AccountDataSource {
     return tenantId;
   }
 
-  /// Genera un número de cuenta único de 14-16 dígitos según estándar peruano
   Future<String> _generateAccountNumber(String microfinancieraId) async {
     String accountNumber = '';
     bool exists = true;
@@ -210,19 +208,15 @@ class AccountDataSource {
     while (exists && attempts < maxAttempts) {
       attempts++;
 
-      // Generar número de cuenta de 16 dígitos para microfinanciera
-      // Formato: MMYY + 12 dígitos aleatorios
       final now = DateTime.now();
       final monthYear =
           '${now.month.toString().padLeft(2, '0')}${now.year.toString().substring(2)}';
 
-      // Generar 12 dígitos aleatorios
       final random = DateTime.now().microsecondsSinceEpoch;
       final randomPart = (random % 1000000000000).toString().padLeft(12, '0');
 
       accountNumber = monthYear + randomPart;
 
-      // Verificar si ya existe
       final snapshot = await _firestore
           .collection('microfinancieras')
           .doc(microfinancieraId)
@@ -242,7 +236,6 @@ class AccountDataSource {
     return accountNumber;
   }
 
-  /// Genera un Código de Cuenta Interbancario (CCI) único de 20 dígitos
   Future<String> _generateCCI(String microfinancieraId) async {
     String cci = '';
     bool exists = true;
@@ -254,7 +247,6 @@ class AccountDataSource {
 
       final bankCode = '999';
 
-      // Generar 17 dígitos aleatorios
       final random = DateTime.now().microsecondsSinceEpoch;
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final randomPart = (timestamp + random.toString())
@@ -263,7 +255,6 @@ class AccountDataSource {
 
       cci = bankCode + randomPart;
 
-      // Verificar si ya existe
       final snapshot = await _firestore
           .collection('microfinancieras')
           .doc(microfinancieraId)
@@ -283,21 +274,19 @@ class AccountDataSource {
     return cci;
   }
 
-  /// Obtiene la tasa de interés según el tipo de cuenta
   double _getInterestRateByAccountType(AccountType accountType) {
     switch (accountType) {
       case AccountType.savings:
-        return 2.50; // 2.50% anual para cuentas de ahorro
+        return 2.50;
       case AccountType.checking:
-        return 0.25; // 0.25% anual para cuentas corrientes
+        return 0.25;
       case AccountType.fixedDeposit:
-        return 4.75; // 4.75% anual para depósitos a plazo fijo
+        return 4.75;
       case AccountType.microCredit:
-        return 3.25; // 3.25% anual para cuentas de microcrédito
+        return 3.25;
     }
   }
 
-  /// Obtiene el balance total de todas las cuentas de un usuario
   Future<double> getTotalBalance(
     String userId,
     String microfinancieraId,
@@ -313,7 +302,7 @@ class AccountDataSource {
 
       double total = 0.0;
       for (final doc in snapshot.docs) {
-        final account = Account.fromFirestore(doc);
+        final account = AccountDto.fromFirestore(doc).toDomain();
         total += account.balance;
       }
       return total;
@@ -323,7 +312,6 @@ class AccountDataSource {
     }
   }
 
-  /// Actualiza el balance de una cuenta
   Future<void> updateBalance(
     String accountId,
     double newBalance,

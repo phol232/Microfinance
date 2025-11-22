@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../domain/entities/account.dart';
 import '../../../domain/entities/card.dart' as domain;
-import 'package:mobile/core/services/biometric_auth_service.dart';
-import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/infrastructure/services/biometric_auth_service.dart';
+import 'package:mobile/infrastructure/tenant/tenant_controller.dart';
 import '../../bloc/account/account_bloc.dart';
 import '../../bloc/account/account_event.dart';
 import '../../bloc/account/account_state.dart';
@@ -29,7 +30,7 @@ class AccountsScreen extends StatefulWidget {
 
 class _AccountsScreenState extends State<AccountsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   // Variables para filtros y búsqueda
   AccountType? _selectedAccountType;
   String _searchQuery = '';
@@ -104,9 +105,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
     // Filtrar por búsqueda (número de cuenta)
     if (_searchQuery.isNotEmpty) {
       filteredAccounts = filteredAccounts
-          .where((account) => account.accountNumber
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()))
+          .where(
+            (account) => account.accountNumber.toLowerCase().contains(
+              _searchQuery.toLowerCase(),
+            ),
+          )
           .toList();
     }
 
@@ -124,33 +127,35 @@ class _AccountsScreenState extends State<AccountsScreen> {
   void _showCreateAccountModal() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    
+
     final microfinancieraId = _resolveMicrofinancieraId();
     if (microfinancieraId == null) {
       _ensureTenantAvailable();
       return;
     }
-    
+
     // Obtener las cuentas existentes del usuario
     final accountState = context.read<AccountBloc>().state;
     List<Account> existingAccounts = [];
     if (accountState is AccountLoaded) {
       existingAccounts = accountState.accounts;
     }
-    
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => AccountCreationScreen(
-          userId: uid,
-          microfinancieraId: microfinancieraId,
-          existingAccounts: existingAccounts,
-        ),
-      ),
-    ).then((_) {
-      // Reload accounts and cards after modal closes
-      _loadUserAccounts();
-      _loadUserCards();
-    });
+
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => AccountCreationScreen(
+              userId: uid,
+              microfinancieraId: microfinancieraId,
+              existingAccounts: existingAccounts,
+            ),
+          ),
+        )
+        .then((_) {
+          // Reload accounts and cards after modal closes
+          _loadUserAccounts();
+          _loadUserCards();
+        });
   }
 
   void _showCreateCardModal(String accountId) {
@@ -168,30 +173,35 @@ class _AccountsScreenState extends State<AccountsScreen> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => CardRequestScreen(
-          userAccounts: userAccounts,
-          userId: uid,
-          microfinancieraId: microfinancieraId,
-        ),
-      ),
-    ).then((_) {
-      if (mounted) {
-        // Cargar todas las tarjetas del usuario después de regresar
-        context.read<CardBloc>().add(CardLoadUserCards(uid, microfinancieraId));
-      }
-    });
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => CardRequestScreen(
+              userAccounts: userAccounts,
+              userId: uid,
+              microfinancieraId: microfinancieraId,
+            ),
+          ),
+        )
+        .then((_) {
+          if (mounted) {
+            // Cargar todas las tarjetas del usuario después de regresar
+            context.read<CardBloc>().add(
+              CardLoadUserCards(uid, microfinancieraId),
+            );
+          }
+        });
   }
 
   void _showCardRequestStatus(String accountId) {
     final cardState = context.read<CardBloc>().state;
     if (cardState is CardLoaded) {
       final pendingCard = cardState.cards.firstWhere(
-        (card) => card.accountId == accountId &&
+        (card) =>
+            card.accountId == accountId &&
             (card.status == domain.CardStatus.requested ||
-             card.status == domain.CardStatus.approved ||
-             card.status == domain.CardStatus.inProduction),
+                card.status == domain.CardStatus.approved ||
+                card.status == domain.CardStatus.inProduction),
         orElse: () => throw StateError('No pending card found'),
       );
 
@@ -247,6 +257,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final uid = _auth.currentUser?.uid;
 
     if (uid == null) {
@@ -255,9 +267,24 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tus Cuentas'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
+        systemOverlayStyle: isDark
+            ? SystemUiOverlayStyle.light.copyWith(
+                statusBarColor: colorScheme.surface,
+                systemNavigationBarColor: colorScheme.surface,
+              )
+            : SystemUiOverlayStyle.dark.copyWith(
+                statusBarColor: colorScheme.surface,
+                systemNavigationBarColor: colorScheme.surface,
+              ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadUserAccounts,
+            tooltip: 'Actualizar cuentas',
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -267,12 +294,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
           builder: (context, state) {
             return ListView(
               padding: EdgeInsets.symmetric(
-                horizontal: MediaQuery.of(context).size.width * 0.04, // 4% del ancho
+                horizontal:
+                    MediaQuery.of(context).size.width * 0.04, // 4% del ancho
                 vertical: 12,
               ),
               children: [
-                SizedBox(height: MediaQuery.of(context).size.height * 0.01), // 1% de la altura
-
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.01,
+                ), // 1% de la altura
                 // Filtros y buscador
                 _buildFiltersSection(),
                 SizedBox(height: MediaQuery.of(context).size.height * 0.02),
@@ -313,7 +342,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   // Aplicar filtros a las cuentas
                   ...() {
                     final filteredAccounts = _filterAccounts(state.accounts);
-                    if (filteredAccounts.isEmpty && (state.accounts.isNotEmpty)) {
+                    if (filteredAccounts.isEmpty &&
+                        (state.accounts.isNotEmpty)) {
                       return [
                         Card(
                           child: Padding(
@@ -323,20 +353,23 @@ class _AccountsScreenState extends State<AccountsScreen> {
                                 Icon(
                                   Icons.search_off,
                                   size: 48,
-                                  color: Colors.grey.shade400,
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
+                                Text(
                                   'No se encontraron cuentas',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
+                                Text(
                                   'Intenta ajustar los filtros de búsqueda',
-                                  style: TextStyle(color: Colors.grey),
+                                  style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
@@ -350,10 +383,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                       ];
                     }
-                    return filteredAccounts.map((account) => _buildAccountCard(account)).toList();
+                    return filteredAccounts
+                        .map((account) => _buildAccountCard(account))
+                        .toList();
                   }(),
-                ]
-                else if (state is AccountCreating)
+                ] else if (state is AccountCreating)
                   const Card(
                     child: Padding(
                       padding: EdgeInsets.all(16.0),
@@ -394,7 +428,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Widget _buildFiltersSection() {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         // Buscador por número de cuenta
@@ -414,11 +449,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     },
                   )
                 : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Colors.grey.shade50,
+            fillColor: colorScheme.surfaceVariant,
             contentPadding: EdgeInsets.symmetric(
               horizontal: screenWidth * 0.04,
               vertical: screenHeight * 0.015,
@@ -444,7 +477,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: colorScheme.surfaceVariant,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.04,
                     vertical: screenHeight * 0.015,
@@ -455,10 +488,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     value: null,
                     child: Text('Todos los tipos'),
                   ),
-                  ...AccountType.values.map((type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(type.displayName),
-                      )),
+                  ...AccountType.values.map(
+                    (type) => DropdownMenuItem(
+                      value: type,
+                      child: Text(type.displayName),
+                    ),
+                  ),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -477,8 +512,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   style: TextStyle(fontSize: screenWidth * 0.035),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade600,
-                  foregroundColor: Colors.white,
+                  backgroundColor: colorScheme.surfaceVariant,
+                  foregroundColor: colorScheme.onSurface,
                   padding: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.03,
                     vertical: screenHeight * 0.012,
@@ -492,6 +527,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Widget _buildEmptyState() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         Card(
@@ -502,44 +539,54 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: colorScheme.primaryContainer,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.account_balance_outlined,
                     size: 48,
-                    color: Colors.blue.shade600,
+                    color: colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   '¡Bienvenido a tu banca digital!',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Aún no tienes cuentas en nuestra microfinanciera',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
+                    color: colorScheme.tertiaryContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
                     children: [
                       Icon(
                         Icons.savings_outlined,
-                        color: Colors.green.shade600,
+                        color: colorScheme.tertiary,
                         size: 32,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Beneficios de crear tu cuenta:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onTertiaryContainer,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -575,18 +622,24 @@ class _AccountsScreenState extends State<AccountsScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade600),
+                    Icon(Icons.info_outline, color: colorScheme.primary),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       '¿Necesitas ayuda?',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Nuestros asesores están disponibles para ayudarte con el proceso de apertura de cuenta.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -631,7 +684,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Widget _buildAccountCard(Account account) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       margin: EdgeInsets.only(bottom: screenHeight * 0.02), // 2% de la altura
       child: Padding(
@@ -669,21 +723,21 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         'N° ${_maskAccountNumber(account.accountNumber, account.status)}',
                         style: TextStyle(
                           fontSize: screenWidth * 0.035, // 3.5% del ancho
-                          color: Colors.grey,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                       Text(
                         'CCI: ${_maskCCI(account.cci, account.status)}',
                         style: TextStyle(
                           fontSize: screenWidth * 0.03, // 3% del ancho
-                          color: Colors.grey,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                       Text(
                         'Tasa: ${account.interestRate.toStringAsFixed(2)}%',
                         style: TextStyle(
                           fontSize: screenWidth * 0.03, // 3% del ancho
-                          color: Colors.blue,
+                          color: colorScheme.primary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -698,7 +752,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       style: TextStyle(
                         fontSize: screenWidth * 0.045, // 4.5% del ancho
                         fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                        color: const Color(0xFF4CAF50), // Verde success
                       ),
                     ),
                     Container(
@@ -734,8 +788,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       style: TextStyle(fontSize: screenWidth * 0.035),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
                       padding: EdgeInsets.symmetric(
                         vertical: screenHeight * 0.015, // 1.5% de la altura
                         horizontal: screenWidth * 0.02, // 2% del ancho
@@ -749,32 +803,45 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     builder: (context, cardState) {
                       bool hasPendingCard = false;
                       if (cardState is CardLoaded) {
-                        hasPendingCard = cardState.cards.any((card) =>
-                            card.accountId == account.id &&
-                            (card.status == domain.CardStatus.requested ||
-                             card.status == domain.CardStatus.approved ||
-                             card.status == domain.CardStatus.inProduction));
+                        hasPendingCard = cardState.cards.any(
+                          (card) =>
+                              card.accountId == account.id &&
+                              (card.status == domain.CardStatus.requested ||
+                                  card.status == domain.CardStatus.approved ||
+                                  card.status ==
+                                      domain.CardStatus.inProduction),
+                        );
                       }
 
                       // Solo habilitar el botón si la cuenta está activa
-                      final bool isAccountActive = account.status == AccountStatus.active;
-                      final bool canRequestCard = isAccountActive && !hasPendingCard;
+                      final bool isAccountActive =
+                          account.status == AccountStatus.active;
+                      final bool canRequestCard =
+                          isAccountActive && !hasPendingCard;
 
                       return ElevatedButton.icon(
                         onPressed: hasPendingCard
                             ? () => _showCardRequestStatus(account.id)
-                            : (canRequestCard ? () => _showCreateCardModal(account.id) : null),
+                            : (canRequestCard
+                                  ? () => _showCreateCardModal(account.id)
+                                  : null),
                         icon: Icon(
                           hasPendingCard ? Icons.visibility : Icons.credit_card,
                           size: screenWidth * 0.04,
                         ),
                         label: Text(
-                          hasPendingCard ? 'Ver solicitud' : 'Solicitar tarjeta',
+                          hasPendingCard
+                              ? 'Ver solicitud'
+                              : 'Solicitar tarjeta',
                           style: TextStyle(fontSize: screenWidth * 0.035),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: canRequestCard || hasPendingCard ? null : Colors.grey,
-                          foregroundColor: canRequestCard || hasPendingCard ? null : Colors.grey.shade600,
+                          backgroundColor: canRequestCard || hasPendingCard
+                              ? null
+                              : colorScheme.surfaceVariant,
+                          foregroundColor: canRequestCard || hasPendingCard
+                              ? null
+                              : colorScheme.onSurfaceVariant,
                           padding: EdgeInsets.symmetric(
                             vertical: screenHeight * 0.015, // 1.5% de la altura
                             horizontal: screenWidth * 0.02, // 2% del ancho
@@ -794,7 +861,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => AccountMovementsScreen(account: account),
+                          builder: (context) =>
+                              AccountMovementsScreen(account: account),
                         ),
                       );
                     },
@@ -859,24 +927,29 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Widget _buildCardItem(domain.Card card) {
-    final bool canViewCardInfo = card.status == domain.CardStatus.active ||
+    final bool canViewCardInfo =
+        card.status == domain.CardStatus.active ||
         card.status == domain.CardStatus.delivered ||
         card.status == domain.CardStatus.blocked ||
         card.status == domain.CardStatus.expired;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(Icons.credit_card, color: _getCardBrandColor(card.cardBrand)),
+              Icon(
+                Icons.credit_card,
+                color: _getCardBrandColor(card.cardBrand),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -887,9 +960,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      card.status == domain.CardStatus.active 
-                        ? card.maskedCardNumber 
-                        : 'x' * 16,
+                      card.status == domain.CardStatus.active
+                          ? card.maskedCardNumber
+                          : 'x' * 16,
                       style: const TextStyle(color: Colors.grey),
                     ),
                   ],
@@ -1012,14 +1085,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   void _showCardInfoModal(domain.Card card) async {
     final biometricService = BiometricAuthService();
-    
+
     // Mostrar indicador de carga
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
@@ -1033,7 +1104,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
       // Verificar si la biometría está disponible
       final isAvailable = await biometricService.isBiometricAvailable();
-      
+
       if (!isAvailable) {
         // Si no hay biometría disponible, cerrar loading y mostrar mensaje
         if (mounted) Navigator.of(context).pop();
@@ -1043,7 +1114,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
       // Realizar autenticación biométrica
       final result = await biometricService.authenticate(
-        localizedReason: 'Verifica tu identidad para ver la información completa de la tarjeta',
+        localizedReason:
+            'Verifica tu identidad para ver la información completa de la tarjeta',
       );
 
       // Cerrar indicador de carga
@@ -1053,10 +1125,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
         // Autenticación exitosa, mostrar modal
         if (mounted) {
           Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => CardInfoScreen(card: card),
-          ),
-        );
+            MaterialPageRoute(builder: (context) => CardInfoScreen(card: card)),
+          );
         }
       } else if (result == BiometricAuthResult.cancelled) {
         // Usuario canceló la autenticación, no hacer nada
@@ -1066,113 +1136,127 @@ class _AccountsScreenState extends State<AccountsScreen> {
         // Otros errores (fallida, no disponible, etc.), mostrar mensaje de error
         _showBiometricErrorDialog(result, card);
       }
-     } catch (e) {
-       // Cerrar indicador de carga en caso de error
-       if (mounted) Navigator.of(context).pop();
-       _showBiometricErrorDialog(BiometricAuthResult.error, card);
-     }
-   }
+    } catch (e) {
+      // Cerrar indicador de carga en caso de error
+      if (mounted) Navigator.of(context).pop();
+      _showBiometricErrorDialog(BiometricAuthResult.error, card);
+    }
+  }
 
-   void _showBiometricNotAvailableDialog() {
-     showDialog(
-       context: context,
-       builder: (context) => AlertDialog(
-         title: const Text('Autenticación no disponible'),
-         content: const Text(
-           'La autenticación biométrica no está disponible en este dispositivo. '
-           'Para ver la información completa de la tarjeta, necesitas configurar '
-           'huella dactilar o Face ID en la configuración de tu dispositivo.',
-         ),
-         actions: [
-           TextButton(
-             onPressed: () => Navigator.of(context).pop(),
-             child: const Text('Entendido'),
-           ),
-         ],
-       ),
-     );
-   }
+  void _showBiometricNotAvailableDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Autenticación no disponible'),
+        content: const Text(
+          'La autenticación biométrica no está disponible en este dispositivo. '
+          'Para ver la información completa de la tarjeta, necesitas configurar '
+          'huella dactilar o Face ID en la configuración de tu dispositivo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
 
-   void _showBiometricErrorDialog(BiometricAuthResult result, domain.Card card) {
-     final biometricService = BiometricAuthService();
-     final message = biometricService.getResultMessage(result);
-     
-     showDialog(
-       context: context,
-       builder: (context) => AlertDialog(
-         title: const Text('Error de autenticación'),
-         content: Column(
-           mainAxisSize: MainAxisSize.min,
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-             Text(message),
-             const SizedBox(height: 16),
-             TextButton(
-               onPressed: () => _showDiagnosticInfo(),
-               child: const Text('Ver información técnica'),
-             ),
-           ],
-         ),
-         actions: [
-           TextButton(
-             onPressed: () => Navigator.of(context).pop(),
-             child: const Text('Cerrar'),
-           ),
-           if (result == BiometricAuthResult.failed || 
-               result == BiometricAuthResult.notAvailable ||
-               result == BiometricAuthResult.notEnrolled ||
-               result == BiometricAuthResult.error)
-             TextButton(
-               onPressed: () {
-                 Navigator.of(context).pop();
-                 // Intentar de nuevo
-                 _showCardInfoModal(card);
-               },
-               child: const Text('Intentar de nuevo'),
-             ),
-         ],
-       ),
-     );
-   }
+  void _showBiometricErrorDialog(BiometricAuthResult result, domain.Card card) {
+    final biometricService = BiometricAuthService();
+    final message = biometricService.getResultMessage(result);
 
-   void _showDiagnosticInfo() async {
-     final biometricService = BiometricAuthService();
-     final diagnosticInfo = await biometricService.getDiagnosticInfo();
-     
-     if (mounted) {
-       showDialog(
-         context: context,
-         builder: (context) => AlertDialog(
-           title: const Text('Información técnica'),
-           content: SingleChildScrollView(
-             child: Column(
-               crossAxisAlignment: CrossAxisAlignment.start,
-               mainAxisSize: MainAxisSize.min,
-               children: [
-                 Text('Dispositivo soportado: ${diagnosticInfo['isDeviceSupported']}'),
-                 Text('Puede verificar biometría: ${diagnosticInfo['canCheckBiometrics']}'),
-                 Text('Biometrías configuradas: ${diagnosticInfo['hasBiometricsEnrolled']}'),
-                 const SizedBox(height: 8),
-                 const Text('Tipos disponibles:', style: TextStyle(fontWeight: FontWeight.bold)),
-                 ...diagnosticInfo['availableBiometrics'].map<Widget>((type) => Text('• $type')),
-                 if (diagnosticInfo['error'] != null) ...[
-                   const SizedBox(height: 8),
-                   const Text('Error:', style: TextStyle(fontWeight: FontWeight.bold)),
-                   Text(diagnosticInfo['error']),
-                 ],
-               ],
-             ),
-           ),
-           actions: [
-             TextButton(
-               onPressed: () => Navigator.of(context).pop(),
-               child: const Text('Cerrar'),
-             ),
-           ],
-         ),
-       );
-     }
-   }
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error de autenticación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => _showDiagnosticInfo(),
+              child: const Text('Ver información técnica'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+          if (result == BiometricAuthResult.failed ||
+              result == BiometricAuthResult.notAvailable ||
+              result == BiometricAuthResult.notEnrolled ||
+              result == BiometricAuthResult.error)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Intentar de nuevo
+                _showCardInfoModal(card);
+              },
+              child: const Text('Intentar de nuevo'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showDiagnosticInfo() async {
+    final biometricService = BiometricAuthService();
+    final diagnosticInfo = await biometricService.getDiagnosticInfo();
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Información técnica'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Dispositivo soportado: ${diagnosticInfo['isDeviceSupported']}',
+                ),
+                Text(
+                  'Puede verificar biometría: ${diagnosticInfo['canCheckBiometrics']}',
+                ),
+                Text(
+                  'Biometrías configuradas: ${diagnosticInfo['hasBiometricsEnrolled']}',
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tipos disponibles:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                ...diagnosticInfo['availableBiometrics'].map<Widget>(
+                  (type) => Text('• $type'),
+                ),
+                if (diagnosticInfo['error'] != null) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Error:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(diagnosticInfo['error']),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   // Funciones para enmascarar números sensibles
   String _maskAccountNumber(String accountNumber, AccountStatus status) {

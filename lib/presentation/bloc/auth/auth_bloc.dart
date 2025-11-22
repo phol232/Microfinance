@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/infrastructure/tenant/tenant_controller.dart';
 import '../../../domain/entities/app_user.dart';
 import '../../../domain/entities/user_profile.dart';
 import '../../../domain/repositories/auth_repository.dart';

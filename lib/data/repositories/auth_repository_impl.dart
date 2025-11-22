@@ -27,7 +27,6 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String microfinancieraId,
   }) async {
-    // ✅ OPTIMIZACIÓN: Retornar LoginResult con perfil incluido
     return await _dataSource.signInWithEmailAndPassword(
       email: email,
       password: password,

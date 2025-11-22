@@ -1,6 +1,8 @@
 import '../../entities/card.dart';
 import '../../repositories/card_repository.dart';
 import '../core/usecase.dart';
+import '../../core/error/failures.dart';
+import 'package:fpdart/fpdart.dart';
 
 class RequestCardUseCase implements UseCase<String, RequestCardParams> {
   final CardRepository repository;
@@ -8,54 +10,62 @@ class RequestCardUseCase implements UseCase<String, RequestCardParams> {
   RequestCardUseCase(this.repository);
 
   @override
-  Future<String> call(RequestCardParams params) async {
-    // Verificar si se puede solicitar una tarjeta del tipo específico para esta cuenta
-    final canRequestByType = await repository.canRequestCardByType(
-      params.accountId, 
-      params.microfinancieraId, 
-      params.cardType,
-      params.cardBrand
-    );
-    
-    if (!canRequestByType) {
-      if (params.cardType == CardType.debit) {
-        final brandName = params.cardBrand == CardBrand.visa ? 'Visa' : 'Mastercard';
-        throw Exception('Ya tienes una tarjeta de débito $brandName para esta cuenta o has alcanzado el límite máximo de 2 tarjetas de débito por cuenta.');
-      } else {
-        throw Exception('No se puede solicitar una tarjeta de este tipo para esta cuenta');
+  Future<Either<Failure, String>> call(RequestCardParams params) async {
+    try {
+      final canRequestByType = await repository.canRequestCardByType(
+        params.accountId,
+        params.microfinancieraId,
+        params.cardType,
+        params.cardBrand,
+      );
+      
+      if (!canRequestByType) {
+        if (params.cardType == CardType.debit) {
+          final brandName = params.cardBrand == CardBrand.visa ? 'Visa' : 'Mastercard';
+          return Left(ValidationFailure(
+            'Ya tienes una tarjeta de débito $brandName para esta cuenta o has alcanzado el límite máximo de 2 tarjetas de débito por cuenta.',
+          ));
+        } else {
+          return const Left(
+            ValidationFailure('No se puede solicitar una tarjeta de este tipo para esta cuenta'),
+          );
+        }
       }
+
+      final card = Card(
+        id: '',
+        userId: params.userId,
+        accountId: params.accountId,
+        microfinancieraId: params.microfinancieraId,
+        cardNumber: '',
+        cardType: params.cardType,
+        cardBrand: params.cardBrand,
+        holderName: params.holderName,
+        expiryDate: DateTime.now().add(const Duration(days: 1460)),
+        status: CardStatus.requested,
+        createdAt: DateTime.now(),
+        dailyLimit: params.dailyLimit,
+        monthlyLimit: params.monthlyLimit,
+        atmLimit: params.atmLimit,
+        onlineLimit: params.onlineLimit,
+        requestReason: params.requestReason,
+        deliveryAddress: params.deliveryAddress,
+        deliveryDistrict: params.deliveryDistrict,
+        deliveryProvince: params.deliveryProvince,
+        deliveryDepartment: params.deliveryDepartment,
+        deliveryPhone: params.deliveryPhone,
+        additionalComments: params.additionalComments,
+        isContactlessEnabled: params.isContactlessEnabled ?? true,
+        isOnlineEnabled: params.isOnlineEnabled ?? true,
+        isAtmEnabled: params.isAtmEnabled ?? true,
+        isInternationalEnabled: params.isInternationalEnabled ?? false,
+      );
+
+      final id = await repository.requestCard(card, params.microfinancieraId);
+      return Right(id);
+    } catch (e) {
+      return Left(UnknownFailure(e.toString(), code: 'request_card'));
     }
-
-    final card = Card(
-      id: '',
-      userId: params.userId,
-      accountId: params.accountId,
-      microfinancieraId: params.microfinancieraId,
-      cardNumber: '',
-      cardType: params.cardType,
-      cardBrand: params.cardBrand,
-      holderName: params.holderName,
-      expiryDate: DateTime.now().add(const Duration(days: 1460)),
-      status: CardStatus.requested,
-      createdAt: DateTime.now(),
-      dailyLimit: params.dailyLimit,
-      monthlyLimit: params.monthlyLimit,
-      atmLimit: params.atmLimit,
-      onlineLimit: params.onlineLimit,
-      requestReason: params.requestReason,
-      deliveryAddress: params.deliveryAddress,
-      deliveryDistrict: params.deliveryDistrict,
-      deliveryProvince: params.deliveryProvince,
-      deliveryDepartment: params.deliveryDepartment,
-      deliveryPhone: params.deliveryPhone,
-      additionalComments: params.additionalComments,
-      isContactlessEnabled: params.isContactlessEnabled ?? true,
-      isOnlineEnabled: params.isOnlineEnabled ?? true,
-      isAtmEnabled: params.isAtmEnabled ?? true,
-      isInternationalEnabled: params.isInternationalEnabled ?? false,
-    );
-
-    return await repository.requestCard(card, params.microfinancieraId);
   }
 }
 

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Avante</string>
+	<string>FINANCE</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Avante</string>
+	<string>FINANCE</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -50,6 +50,12 @@
 	<string>Esta aplicación necesita acceso a tu ubicación para verificar tu identidad y acelerar el proceso de solicitud de crédito.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Esta aplicación necesita acceso a tu ubicación para verificar tu identidad y acelerar el proceso de solicitud de crédito.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Necesitamos acceder a la cámara para que puedas tomar tu foto de perfil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Necesitamos acceder a tu galería para que puedas elegir una foto de perfil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Necesitamos permiso para guardar la foto de perfil seleccionada en tu galería.</string>
 	
 	<!-- Permisos biométricos -->
 	<key>NSFaceIDUsageDescription</key>
@@ -89,5 +95,7 @@
 		<string>fbauth2</string>
 		<string>fbshareextension</string>
 	</array>
+	<key>GMSApiKey</key>
+	<string>AIzaSyBy7ofoN91hDelJXR8-GKPKqtihm2JImvg</string>
 </dict>
 </plist>

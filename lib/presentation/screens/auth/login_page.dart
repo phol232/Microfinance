@@ -7,7 +7,6 @@ import '../../components/app_card.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
-import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import 'register_page.dart';
@@ -121,12 +120,11 @@ class _LoginPageState extends State<LoginPage> {
       child: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           final isLoading = state is AuthLoading;
+          final colorScheme = Theme.of(context).colorScheme;
 
           return Scaffold(
             body: Container(
-              decoration: const BoxDecoration(
-                gradient: AppColors.surfaceGradient,
-              ),
+              decoration: BoxDecoration(color: colorScheme.background),
               child: SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -169,7 +167,10 @@ class _LoginPageState extends State<LoginPage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               // Logo removido para optimizar espacio
-                              _buildWelcomeSection(isCompact: isVerySmall),
+                              _buildWelcomeSection(
+                                isCompact: isVerySmall,
+                                colorScheme: colorScheme,
+                              ),
                               SizedBox(
                                 height: screenHeight * 0.03,
                               ), // 3% de la altura
@@ -197,6 +198,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildBrandSection({bool isCompact = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
@@ -206,13 +209,17 @@ class _LoginPageState extends State<LoginPage> {
           Container(
             padding: EdgeInsets.all(screenWidth * 0.04), // 4% del ancho
             decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
+              gradient: LinearGradient(
+                colors: [colorScheme.primary, colorScheme.primaryContainer],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(
                 screenWidth * 0.04,
               ), // 4% del ancho
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.3),
+                  color: colorScheme.primary.withValues(alpha: 0.3),
                   blurRadius: screenWidth * 0.02, // 2% del ancho
                   offset: Offset(0, screenHeight * 0.005), // 0.5% de la altura
                 ),
@@ -220,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             child: Icon(
               Icons.account_balance,
-              color: AppColors.onPrimary,
+              color: colorScheme.onPrimary,
               size: screenWidth * 0.07, // 7% del ancho
             ),
           ),
@@ -231,7 +238,7 @@ class _LoginPageState extends State<LoginPage> {
                 'Microfinance',
                 style: AppTypography.headlineMedium.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                  color: colorScheme.primary,
                   fontSize: screenWidth * 0.06, // 6% del ancho
                 ),
                 textAlign: TextAlign.center,
@@ -239,7 +246,7 @@ class _LoginPageState extends State<LoginPage> {
               Text(
                 'Gestión financiera inteligente',
                 style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: screenWidth * 0.035, // 3.5% del ancho
                 ),
                 textAlign: TextAlign.center,
@@ -256,13 +263,17 @@ class _LoginPageState extends State<LoginPage> {
         Container(
           padding: EdgeInsets.all(screenWidth * 0.05), // 5% del ancho
           decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
+            gradient: LinearGradient(
+              colors: [colorScheme.primary, colorScheme.primaryContainer],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(
               screenWidth * 0.04,
             ), // 4% del ancho
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
+                color: colorScheme.primary.withValues(alpha: 0.3),
                 blurRadius: screenWidth * 0.03, // 3% del ancho
                 offset: Offset(0, screenHeight * 0.008), // 0.8% de la altura
               ),
@@ -270,7 +281,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
           child: Icon(
             Icons.account_balance,
-            color: AppColors.onPrimary,
+            color: colorScheme.onPrimary,
             size: screenWidth * 0.1, // 10% del ancho
           ),
         ),
@@ -282,14 +293,14 @@ class _LoginPageState extends State<LoginPage> {
               'Microfinance',
               style: AppTypography.headlineLarge.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                color: colorScheme.primary,
                 fontSize: screenWidth * 0.08, // 8% del ancho
               ),
             ),
             Text(
               'Gestión financiera inteligente',
               style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
                 fontSize: screenWidth * 0.04, // 4% del ancho
               ),
             ),
@@ -299,14 +310,17 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildWelcomeSection({bool isCompact = false}) {
+  Widget _buildWelcomeSection({
+    bool isCompact = false,
+    required ColorScheme colorScheme,
+  }) {
     return Column(
       children: [
         Text(
           'Bienvenido',
           style: AppTypography.headlineLarge.copyWith(
             fontWeight: FontWeight.bold,
-            color: AppColors.onSurface,
+            color: colorScheme.onSurface,
           ),
           textAlign: TextAlign.center,
         ),
@@ -314,7 +328,7 @@ class _LoginPageState extends State<LoginPage> {
         Text(
           'Inicia sesión para continuar',
           style: AppTypography.bodyLarge.copyWith(
-            color: AppColors.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),
@@ -323,6 +337,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildMicrofinancieraSelector() {
+    final colorScheme = Theme.of(context).colorScheme;
     if (_isLoadingMicrofinancieras) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,7 +345,7 @@ class _LoginPageState extends State<LoginPage> {
           Text(
             'Microfinanciera',
             style: AppTypography.labelLarge.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -338,7 +353,7 @@ class _LoginPageState extends State<LoginPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.outline),
+              border: Border.all(color: colorScheme.outline),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             child: const Row(
@@ -363,7 +378,7 @@ class _LoginPageState extends State<LoginPage> {
         Text(
           'Microfinanciera',
           style: AppTypography.labelLarge.copyWith(
-            color: AppColors.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -377,7 +392,11 @@ class _LoginPageState extends State<LoginPage> {
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             filled: true,
-            fillColor: AppColors.surface,
+            fillColor: colorScheme.surface,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderSide: BorderSide(color: colorScheme.primary, width: 2),
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
@@ -472,6 +491,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildSocialButtons({required bool isLoading}) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         _buildDivider(),
@@ -479,11 +500,11 @@ class _LoginPageState extends State<LoginPage> {
 
         OutlinedButton.icon(
           onPressed: isLoading ? null : _signInWithGoogle,
-          icon: const Icon(Icons.login, color: Colors.red),
+          icon: Icon(Icons.login, color: colorScheme.error),
           label: const Text('Continuar con Google'),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            side: const BorderSide(color: Colors.red),
+            side: BorderSide(color: colorScheme.error),
           ),
         ),
         // Botón de Facebook removido
@@ -492,6 +513,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildDivider() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         const Expanded(child: Divider()),
@@ -500,7 +522,7 @@ class _LoginPageState extends State<LoginPage> {
           child: Text(
             'O continúa con',
             style: AppTypography.bodySmall.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -510,13 +532,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildSignUpPrompt() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           '¿No tienes cuenta? ',
           style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         TextButton(
@@ -605,14 +628,16 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showErrorSnackBar(String message) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.error,
+        backgroundColor: colorScheme.error,
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'Cerrar',
-          textColor: AppColors.onError,
+          textColor: colorScheme.onError,
           onPressed: () {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
           },

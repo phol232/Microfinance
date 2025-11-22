@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/infrastructure/tenant/tenant_controller.dart';
 import '../../bloc/intake_request/intake_request_bloc.dart';
 import '../../bloc/intake_request/intake_request_event.dart';
 import '../../bloc/intake_request/intake_request_state.dart';

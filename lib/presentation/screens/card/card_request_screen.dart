@@ -4,7 +4,7 @@ import '../../../domain/entities/card.dart' as domain;
 import '../../../domain/entities/account.dart';
 import '../../../domain/entities/loan_application.dart';
 import '../../../domain/usecases/card/request_card_usecase.dart';
-import 'package:mobile/core/services/location_service.dart';
+import 'package:mobile/infrastructure/services/location_service.dart';
 import 'package:mobile/presentation/widgets/location_permission_dialog.dart';
 import '../../bloc/card/card_bloc.dart';
 import '../../bloc/card/card_event.dart';

@@ -76,11 +76,8 @@ class AppLogger {
       }
     }
     
-    // En producción, aquí se podría enviar a un servicio de logging externo
-    // como Firebase Crashlytics, Sentry, etc.
   }
 
-  // Métodos específicos para diferentes contextos
   static void api(String message, {Map<String, dynamic>? data}) {
     if (_shouldLog(LogLevel.debug)) {
       debug(message, tag: 'API');

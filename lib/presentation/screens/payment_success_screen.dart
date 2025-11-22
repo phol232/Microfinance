@@ -19,8 +19,9 @@ class PaymentSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(
       locale: 'es_PE',
-      symbol: 'S/',
+      symbol: 'S/ ',
       decimalDigits: 2,
+      customPattern: '¤#,##0.00',
     );
 
     return Scaffold(

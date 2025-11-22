@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Sistema de colores para Material 3
 class AppColors {
-  static const Color primary = Color(0xFF0F4C75);
-  static const Color primaryVariant = Color(0xFF3282B8);
+  static const Color primary = Color(
+    0xFF2196F3,
+  ); // Azul vibrante moderno (Material Blue)
+  static const Color primaryVariant = Color(0xFF42A5F5);
   static const Color secondary = Color(0xFFBBE1FA);
   static const Color secondaryVariant = Color(0xFF1B262C);
 
@@ -29,7 +31,7 @@ class AppColors {
 
   // Gradientes
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primary, primaryVariant],
+    colors: [Color(0xFF2196F3), Color(0xFF42A5F5)], // Gradiente azul vibrante
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -39,4 +41,16 @@ class AppColors {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
+
+  // Paleta modo oscuro
+  static const Color darkBackground = Color(0xFF050816); // bg principal
+  static const Color darkSurface = Color(0xFF0B1120); // cards base
+  static const Color darkSurfaceVariant = Color(0xFF111827); // elevación ligera
+  static const Color darkOutline = Color(0xFF1F2937);
+  static const Color darkOutlineVariant = Color(0xFF111827);
+
+  static const Color darkOnSurface = Color(0xFFE5E7EB); // texto principal
+  static const Color darkOnSurfaceVariant = Color(0xFF9CA3AF); // secundario
+  static const Color darkOnSurfaceTertiary = Color(0xFF6B7280); // hints
+  static const Color darkPlaceholder = Color(0xFF4B5563);
 }

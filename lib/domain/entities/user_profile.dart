@@ -9,6 +9,7 @@ class UserProfile {
   final String? dni;
   final String? phone;
   final String? photoUrl;
+  final String? photoBase64;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? microfinancieraId;
@@ -28,6 +29,7 @@ class UserProfile {
     this.dni,
     this.phone,
     this.photoUrl,
+    this.photoBase64,
     this.createdAt,
     this.updatedAt,
     this.microfinancieraId,
@@ -65,6 +67,8 @@ class UserProfile {
           _parseOptionalStringField(map['docNumber']),
       phone: _parseOptionalStringField(map['phone']),
       photoUrl: _parseOptionalStringField(map['photoUrl']),
+      photoBase64: _parseOptionalStringField(map['photoBase64']) ??
+          _parseOptionalStringField(map['fotoBase64']),
       createdAt: _parseTimestamp(map['createdAt']),
       updatedAt: _parseTimestamp(map['updatedAt']),
       microfinancieraId: _parseOptionalStringField(map['microfinancieraId']),
@@ -77,44 +81,35 @@ class UserProfile {
     );
   }
 
-  // Helper method to safely parse string fields
   static String _parseStringField(dynamic value) {
     if (value == null) return '';
     if (value is String) return value;
-    // Si es un FieldValue u otro tipo, devolver string vacío
     return '';
   }
 
-  // Helper method to safely parse optional string fields
   static String? _parseOptionalStringField(dynamic value) {
     if (value == null) return null;
     if (value is String) return value.isEmpty ? null : value;
-    // Si es un FieldValue u otro tipo, devolver null
     return null;
   }
 
-  // Helper method to safely parse Firestore timestamps
   static DateTime? _parseTimestamp(dynamic timestamp) {
     if (timestamp == null) return null;
 
     try {
-      // Si es un Timestamp de Firestore, convertirlo a DateTime
+
       if (timestamp is Timestamp) {
         return timestamp.toDate();
       }
-      // Si ya es un DateTime, devolverlo tal como está
       if (timestamp is DateTime) {
         return timestamp;
       }
-      // Si es un FieldValue (durante escritura), devolver null temporalmente
       return null;
     } catch (e) {
-      // En caso de cualquier error, devolver null
       return null;
     }
   }
 
-  // Helper method to safely parse roles list
   static List<String> _parseRolesList(dynamic value) {
     if (value == null) return [];
     if (value is List) {
@@ -136,6 +131,8 @@ class UserProfile {
       'dni': dni,
       'phone': phone,
       'photoUrl': photoUrl,
+      'photoBase64': photoBase64,
+      'fotoBase64': photoBase64,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'microfinancieraId': microfinancieraId,
@@ -157,6 +154,7 @@ class UserProfile {
     String? dni,
     String? phone,
     String? photoUrl,
+    String? photoBase64,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? microfinancieraId,
@@ -176,6 +174,7 @@ class UserProfile {
       dni: dni ?? this.dni,
       phone: phone ?? this.phone,
       photoUrl: photoUrl ?? this.photoUrl,
+      photoBase64: photoBase64 ?? this.photoBase64,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       microfinancieraId: microfinancieraId ?? this.microfinancieraId,

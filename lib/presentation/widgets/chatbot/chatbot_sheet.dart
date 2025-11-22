@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/services/chatbot_service.dart';
+import '../../../infrastructure/services/chatbot_service.dart';
 import '../../models/chat_message.dart';
 import '../../theme/app_colors.dart';
 

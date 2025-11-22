@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../data/models/credit_product_dto.dart';
 import '../../domain/entities/credit_product.dart';
 
 class CreditProductService {
@@ -14,7 +16,7 @@ class CreditProductService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => CreditProduct.fromFirestore(doc))
+          .map((doc) => CreditProductDto.fromFirestore(doc).toDomain())
           .toList();
     } catch (e) {
       throw Exception('Error al obtener productos de crédito: $e');
@@ -32,7 +34,7 @@ class CreditProductService {
           .get();
 
       if (docSnapshot.exists) {
-        return CreditProduct.fromFirestore(docSnapshot);
+        return CreditProductDto.fromFirestore(docSnapshot).toDomain();
       }
       return null;
     } catch (e) {
@@ -52,7 +54,7 @@ class CreditProductService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => CreditProduct.fromFirestore(doc))
+          .map((doc) => CreditProductDto.fromFirestore(doc).toDomain())
           .toList();
     } catch (e) {
       throw Exception('Error al obtener productos por rango de monto: $e');
@@ -66,8 +68,10 @@ class CreditProductService {
         .doc(mfId)
         .collection('products')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => CreditProduct.fromFirestore(doc))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => CreditProductDto.fromFirestore(doc).toDomain())
+              .toList(),
+        );
   }
 }

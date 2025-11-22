@@ -1,6 +1,8 @@
 import '../../entities/account.dart';
 import '../../repositories/account_repository.dart';
 import '../core/usecase.dart';
+import '../../core/error/failures.dart';
+import 'package:fpdart/fpdart.dart';
 
 class CreateAccountUseCase implements UseCase<String, CreateAccountParams> {
   final AccountRepository repository;
@@ -8,51 +10,52 @@ class CreateAccountUseCase implements UseCase<String, CreateAccountParams> {
   CreateAccountUseCase(this.repository);
 
   @override
-  Future<String> call(CreateAccountParams params) async {
-    // Verificar si el usuario puede crear una nueva cuenta
-    final canCreate = await repository.canCreateAccount(params.userId);
-    if (!canCreate) {
-      throw Exception('El usuario ha alcanzado el límite máximo de cuentas');
+  Future<Either<Failure, String>> call(CreateAccountParams params) async {
+    try {
+      final canCreate = await repository.canCreateAccount(params.userId);
+      if (!canCreate) {
+        return const Left(
+          ValidationFailure('El usuario ha alcanzado el límite máximo de cuentas'),
+        );
+      }
+
+      final account = Account(
+        id: '',
+        userId: params.userId,
+        microfinancieraId: params.microfinancieraId,
+        accountNumber: '',
+        cci: '',
+        interestRate: 0.0,
+        accountType: params.accountType,
+        currency: params.currency,
+        balance: params.initialDeposit ?? 0.0,
+        status: AccountStatus.pending,
+        createdAt: DateTime.now(),
+        holderFirstName: params.firstName,
+        holderLastName: params.lastName,
+        holderDni: params.dni,
+        holderPhone: params.phone,
+        holderEmail: params.email,
+        holderAddress: params.address,
+        holderDistrict: params.district,
+        holderProvince: params.province,
+        holderDepartment: params.department,
+        employmentType: params.employmentType,
+        employerName: params.employer,
+        position: params.position,
+        monthlyIncome: params.monthlyIncome,
+        initialDeposit: params.initialDeposit,
+        hasCreditHistory: params.hasCreditHistory,
+        hasBankAccount: params.hasBankAccount,
+        bankName: params.bankName,
+        additionalComments: params.comments,
+      );
+
+      final id = await repository.createAccount(account);
+      return Right(id);
+    } catch (e) {
+      return Left(UnknownFailure(e.toString(), code: 'create_account'));
     }
-
-    // Crear la cuenta
-    final account = Account(
-      id: '', // Se generará automáticamente
-      userId: params.userId,
-      microfinancieraId: params.microfinancieraId,
-      accountNumber: '', // Se generará automáticamente
-      // Campos bancarios peruanos (se generarán automáticamente)
-      cci: '', // Se generará automáticamente
-      interestRate: 0.0, // Se asignará automáticamente según tipo de cuenta
-      accountType: params.accountType,
-      currency: params.currency,
-      balance: params.initialDeposit ?? 0.0,
-      status: AccountStatus.pending,
-      createdAt: DateTime.now(),
-      // Información del titular
-      holderFirstName: params.firstName,
-      holderLastName: params.lastName,
-      holderDni: params.dni,
-      holderPhone: params.phone,
-      holderEmail: params.email,
-      holderAddress: params.address,
-      holderDistrict: params.district,
-      holderProvince: params.province,
-      holderDepartment: params.department,
-      // Información laboral
-      employmentType: params.employmentType,
-      employerName: params.employer,
-      position: params.position,
-      monthlyIncome: params.monthlyIncome,
-      // Información adicional
-      initialDeposit: params.initialDeposit,
-      hasCreditHistory: params.hasCreditHistory,
-      hasBankAccount: params.hasBankAccount,
-      bankName: params.bankName,
-      additionalComments: params.comments,
-    );
-
-    return await repository.createAccount(account);
   }
 }
 

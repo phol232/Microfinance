@@ -9,7 +9,7 @@ import '../../domain/usecases/loan_application/create_loan_application_usecase.d
 import '../../data/datasources/loan_application_datasource.dart';
 import '../../data/repositories/loan_application_repository_impl.dart';
 import '../../infrastructure/services/credit_product_service.dart';
-import 'package:mobile/core/services/location_service.dart';
+import 'package:mobile/infrastructure/services/location_service.dart';
 import 'package:mobile/presentation/widgets/location_permission_dialog.dart';
 import '../bloc/intake_request/intake_request_bloc.dart';
 import '../bloc/intake_request/intake_request_event.dart';

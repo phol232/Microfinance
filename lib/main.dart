@@ -4,45 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/firebase_config.dart';
+import 'core/di/app_di.dart';
 import 'core/env/env_loader.dart';
-import 'core/tenant/tenant_controller.dart';
-import 'data/datasources/firebase_auth_datasource.dart';
-import 'data/datasources/intake_request_datasource.dart';
-import 'data/datasources/loan_application_datasource.dart';
-import 'data/datasources/account_datasource.dart';
-import 'data/datasources/card_datasource.dart';
-import 'data/repositories/auth_repository_impl.dart';
-import 'data/repositories/intake_request_repository_impl.dart';
-import 'data/repositories/loan_application_repository_impl.dart';
-import 'data/repositories/account_repository_impl.dart';
-import 'data/repositories/card_repository_impl.dart';
-import 'domain/repositories/auth_repository.dart';
-import 'domain/repositories/intake_request_repository.dart';
-import 'domain/repositories/loan_application_repository.dart';
-import 'domain/repositories/account_repository.dart';
-import 'domain/repositories/card_repository.dart';
-import 'domain/usecases/auth/login_user_usecase.dart';
-import 'domain/usecases/auth/register_user_usecase.dart';
-import 'domain/usecases/auth/logout_user_usecase.dart';
-import 'domain/usecases/auth/get_current_user_usecase.dart';
-import 'domain/usecases/auth/get_microfinancieras_usecase.dart';
-import 'domain/usecases/auth/google_signin_usecase.dart';
-import 'domain/usecases/auth/anonymous_signin_usecase.dart';
-import 'domain/usecases/auth/validate_user_access_usecase.dart';
-import 'domain/usecases/profile/get_user_profile_usecase.dart';
-import 'domain/usecases/profile/update_user_profile_usecase.dart';
-import 'domain/usecases/profile/check_dni_exists_usecase.dart';
-import 'domain/usecases/intake_request/get_all_intake_requests_usecase.dart';
-import 'domain/usecases/intake_request/get_intake_requests_by_status_usecase.dart';
-import 'domain/usecases/intake_request/get_recent_intake_requests_usecase.dart';
-import 'domain/usecases/intake_request/get_intake_request_by_id_usecase.dart';
-import 'domain/usecases/intake_request/get_intake_request_status_counts_usecase.dart';
-import 'domain/usecases/account/get_user_accounts_usecase.dart';
-import 'domain/usecases/account/get_account_by_id_usecase.dart';
-import 'domain/usecases/account/create_account_usecase.dart';
-import 'domain/usecases/card/get_user_cards_usecase.dart';
-import 'domain/usecases/card/get_cards_by_account_usecase.dart';
-import 'domain/usecases/card/request_card_usecase.dart';
+import 'infrastructure/tenant/tenant_controller.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/auth/auth_event.dart';
 import 'presentation/bloc/profile/profile_bloc.dart';
@@ -57,7 +21,6 @@ import 'presentation/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final tenantController = TenantController();
   try {
     await EnvLoader.ensureInitialized();
     await Firebase.initializeApp(options: FirebaseConfig.currentPlatform);
@@ -68,15 +31,15 @@ Future<void> main() async {
     debugPrint('❌ ERROR CRÍTICO: Error inicializando Firebase: $e');
   }
 
-  await tenantController.initialize();
+  final dependencies = await AppDependencies.init();
 
-  runApp(MyApp(tenantController: tenantController));
+  runApp(MyApp(dependencies: dependencies));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.tenantController});
+  const MyApp({super.key, required this.dependencies});
 
-  final TenantController tenantController;
+  final AppDependencies dependencies;
 
   @override
   Widget build(BuildContext context) {
@@ -84,176 +47,131 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider<TenantController>.value(
-          value: tenantController,
+          value: dependencies.tenantController,
         ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
-          final tenantManager = context.read<TenantController>();
           return MultiRepositoryProvider(
             providers: [
-              RepositoryProvider<AuthRepository>(
-                create: (_) =>
-                    AuthRepositoryImpl(dataSource: FirebaseAuthDataSource()),
+              RepositoryProvider.value(
+                value: dependencies.authRepository,
               ),
-              RepositoryProvider<IntakeRequestRepository>(
-                create: (_) => IntakeRequestRepositoryImpl(
-                  IntakeRequestDataSource(tenantResolver: tenantManager),
-                ),
+              RepositoryProvider.value(
+                value: dependencies.intakeRequestRepository,
               ),
-              RepositoryProvider<LoanApplicationRepository>(
-                create: (_) => LoanApplicationRepositoryImpl(
-                  dataSource: LoanApplicationDataSource(),
-                ),
+              RepositoryProvider.value(
+                value: dependencies.loanApplicationRepository,
               ),
-              RepositoryProvider<AccountRepository>(
-                create: (_) => AccountRepositoryImpl(
-                  accountDataSource: AccountDataSource(
-                    tenantResolver: tenantManager,
-                  ),
-                ),
+              RepositoryProvider.value(
+                value: dependencies.accountRepository,
               ),
-              RepositoryProvider<CardRepository>(
-                create: (_) =>
-                    CardRepositoryImpl(cardDataSource: CardDataSource()),
+              RepositoryProvider.value(
+                value: dependencies.cardRepository,
               ),
             ],
             child: Builder(
               builder: (context) {
-                final authRepository = context.read<AuthRepository>();
-                final intakeRequestRepository = context
-                    .read<IntakeRequestRepository>();
-                final accountRepository = context.read<AccountRepository>();
-                final cardRepository = context.read<CardRepository>();
-
                 return MultiBlocProvider(
                   providers: [
                     BlocProvider<AuthBloc>(
                       create: (_) {
-                        final loginUserUseCase = LoginUserUseCase(
-                          authRepository,
-                        );
-                        final registerUserUseCase = RegisterUserUseCase(
-                          authRepository,
-                        );
-                        final logoutUserUseCase = LogoutUserUseCase(
-                          authRepository,
-                        );
-                        final getCurrentUserUseCase = GetCurrentUserUseCase(
-                          authRepository,
-                        );
-                        final getMicrofinancierasUseCase =
-                            GetMicrofinancierasUseCase(authRepository);
-                        final googleSignInUseCase = GoogleSignInUseCase(
-                          authRepository,
-                        );
-                        final anonymousSignInUseCase = AnonymousSignInUseCase(
-                          authRepository,
-                        );
-                        final validateUserAccessUseCase =
-                            ValidateUserAccessUseCase(authRepository);
-
                         return AuthBloc(
-                          authRepository: authRepository,
-                          loginUserUseCase: loginUserUseCase,
-                          registerUserUseCase: registerUserUseCase,
-                          logoutUserUseCase: logoutUserUseCase,
-                          getCurrentUserUseCase: getCurrentUserUseCase,
+                          authRepository: dependencies.authRepository,
+                          loginUserUseCase:
+                              dependencies.auth.loginUserUseCase,
+                          registerUserUseCase:
+                              dependencies.auth.registerUserUseCase,
+                          logoutUserUseCase:
+                              dependencies.auth.logoutUserUseCase,
+                          getCurrentUserUseCase:
+                              dependencies.auth.getCurrentUserUseCase,
                           getMicrofinancierasUseCase:
-                              getMicrofinancierasUseCase,
-                          googleSignInUseCase: googleSignInUseCase,
-                          anonymousSignInUseCase: anonymousSignInUseCase,
-                          validateUserAccessUseCase: validateUserAccessUseCase,
-                          tenantController: tenantManager,
+                              dependencies.auth.getMicrofinancierasUseCase,
+                          googleSignInUseCase:
+                              dependencies.auth.googleSignInUseCase,
+                          anonymousSignInUseCase:
+                              dependencies.auth.anonymousSignInUseCase,
+                          validateUserAccessUseCase:
+                              dependencies.auth.validateUserAccessUseCase,
+                          tenantController: dependencies.tenantController,
                         )..add(const AuthCheckRequested());
                       },
                     ),
                     BlocProvider<ProfileBloc>(
                       create: (_) {
-                        final getUserProfileUseCase = GetUserProfileUseCase(
-                          authRepository,
-                        );
-                        final updateUserProfileUseCase =
-                            UpdateUserProfileUseCase(authRepository);
-                        final checkDniExistsUseCase = CheckDniExistsUseCase(
-                          authRepository,
-                        );
-
                         return ProfileBloc(
-                          getUserProfileUseCase: getUserProfileUseCase,
-                          updateUserProfileUseCase: updateUserProfileUseCase,
-                          checkDniExistsUseCase: checkDniExistsUseCase,
+                          getUserProfileUseCase:
+                              dependencies.profile.getUserProfileUseCase,
+                          updateUserProfileUseCase:
+                              dependencies.profile.updateUserProfileUseCase,
+                          checkDniExistsUseCase:
+                              dependencies.profile.checkDniExistsUseCase,
                         );
                       },
                     ),
                     BlocProvider<IntakeRequestBloc>(
                       create: (_) {
-                        final getAllIntakeRequestsUseCase =
-                            GetAllIntakeRequestsUseCase(
-                              intakeRequestRepository,
-                            );
-                        final getIntakeRequestsByStatusUseCase =
-                            GetIntakeRequestsByStatusUseCase(
-                              intakeRequestRepository,
-                            );
-                        final getRecentIntakeRequestsUseCase =
-                            GetRecentIntakeRequestsUseCase(
-                              intakeRequestRepository,
-                            );
-                        final getIntakeRequestByIdUseCase =
-                            GetIntakeRequestByIdUseCase(
-                              intakeRequestRepository,
-                            );
-                        final getIntakeRequestStatusCountsUseCase =
-                            GetIntakeRequestStatusCountsUseCase(
-                              intakeRequestRepository,
-                            );
-
                         return IntakeRequestBloc(
-                          getAllIntakeRequestsUseCase,
-                          getIntakeRequestsByStatusUseCase,
-                          getRecentIntakeRequestsUseCase,
-                          getIntakeRequestByIdUseCase,
-                          getIntakeRequestStatusCountsUseCase,
+                          dependencies.intakeRequests.getAllIntakeRequestsUseCase,
+                          dependencies
+                              .intakeRequests.getIntakeRequestsByStatusUseCase,
+                          dependencies
+                              .intakeRequests.getRecentIntakeRequestsUseCase,
+                          dependencies.intakeRequests.getIntakeRequestByIdUseCase,
+                          dependencies.intakeRequests
+                              .getIntakeRequestStatusCountsUseCase,
                         );
                       },
                     ),
                     BlocProvider<AccountBloc>(
                       create: (_) {
-                        final getUserAccountsUseCase = GetUserAccountsUseCase(
-                          accountRepository,
-                        );
-                        final getAccountByIdUseCase = GetAccountByIdUseCase(
-                          accountRepository,
-                        );
-                        final createAccountUseCase = CreateAccountUseCase(
-                          accountRepository,
-                        );
-
                         return AccountBloc(
-                          accountRepository: accountRepository,
-                          getUserAccountsUseCase: getUserAccountsUseCase,
-                          getAccountByIdUseCase: getAccountByIdUseCase,
-                          createAccountUseCase: createAccountUseCase,
+                          createAccountUseCase:
+                              dependencies.accounts.createAccountUseCase,
+                          getUserAccountsUseCase:
+                              dependencies.accounts.getUserAccountsUseCase,
+                          getAccountByIdUseCase:
+                              dependencies.accounts.getAccountByIdUseCase,
+                          updateAccountUseCase:
+                              dependencies.accounts.updateAccountUseCase,
+                          deleteAccountUseCase:
+                              dependencies.accounts.deleteAccountUseCase,
+                          getAccountsByMicrofinancieraUseCase:
+                              dependencies.accounts
+                                  .getAccountsByMicrofinancieraUseCase,
+                          getAccountsByStatusUseCase:
+                              dependencies.accounts.getAccountsByStatusUseCase,
                         );
                       },
                     ),
                     BlocProvider<CardBloc>(
                       create: (_) {
-                        final getUserCardsUseCase = GetUserCardsUseCase(
-                          cardRepository,
-                        );
-                        final getCardsByAccountUseCase =
-                            GetCardsByAccountUseCase(cardRepository);
-                        final requestCardUseCase = RequestCardUseCase(
-                          cardRepository,
-                        );
-
                         return CardBloc(
-                          cardRepository: cardRepository,
-                          getUserCardsUseCase: getUserCardsUseCase,
-                          getCardsByAccountUseCase: getCardsByAccountUseCase,
-                          requestCardUseCase: requestCardUseCase,
+                          getUserCardsUseCase:
+                              dependencies.cards.getUserCardsUseCase,
+                          getCardsByAccountUseCase:
+                              dependencies.cards.getCardsByAccountUseCase,
+                          requestCardUseCase:
+                              dependencies.cards.requestCardUseCase,
+                          getCardsByStatusUseCase:
+                              dependencies.cards.getCardsByStatusUseCase,
+                          updateCardUseCase:
+                              dependencies.cards.updateCardUseCase,
+                          blockCardUseCase:
+                              dependencies.cards.blockCardUseCase,
+                          unblockCardUseCase:
+                              dependencies.cards.unblockCardUseCase,
+                          cancelCardUseCase:
+                              dependencies.cards.cancelCardUseCase,
+                          activateCardUseCase:
+                              dependencies.cards.activateCardUseCase,
+                          getCardByIdUseCase:
+                              dependencies.cards.getCardByIdUseCase,
+                          updateCardLimitsUseCase:
+                              dependencies.cards.updateCardLimitsUseCase,
+                          updateCardSecuritySettingsUseCase: dependencies
+                              .cards.updateCardSecuritySettingsUseCase,
                         );
                       },
                     ),

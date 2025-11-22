@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../domain/usecases/reports/generate_report_usecase.dart';
 import '../../../domain/usecases/reports/get_conversion_metrics_usecase.dart';
 import '../../../domain/usecases/reports/debug_applications_count_usecase.dart';
-import 'package:mobile/core/tenant/tenant_controller.dart';
+import 'package:mobile/infrastructure/tenant/tenant_controller.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});

@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 /// Entidad de dominio para representar una tarjeta de débito/crédito
 class Card {
   const Card({
@@ -79,91 +77,6 @@ class Card {
   final bool? isOnlineEnabled;
   final bool? isAtmEnabled;
   final bool? isInternationalEnabled;
-
-  factory Card.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? <String, dynamic>{};
-    return Card(
-      id: doc.id,
-      userId: data['userId'] ?? '',
-      accountId: data['accountId'] ?? '',
-      microfinancieraId: data['microfinancieraId'] ?? '',
-      cardNumber: data['cardNumber'] ?? '',
-      cardType: CardType.values.firstWhere(
-        (type) => type.name == data['cardType'],
-        orElse: () => CardType.debit,
-      ),
-      cardBrand: CardBrand.values.firstWhere(
-        (brand) => brand.name == data['cardBrand'],
-        orElse: () => CardBrand.visa,
-      ),
-      holderName: data['holderName'] ?? '',
-      expiryDate: _parseTimestamp(data['expiryDate']),
-      status: CardStatus.values.firstWhere(
-        (status) => status.name == data['status'],
-        orElse: () => CardStatus.requested,
-      ),
-      createdAt: _parseTimestamp(data['createdAt']),
-      updatedAt: data['updatedAt'] != null ? _parseTimestamp(data['updatedAt']) : null,
-      activatedAt: data['activatedAt'] != null ? _parseTimestamp(data['activatedAt']) : null,
-      blockedAt: data['blockedAt'] != null ? _parseTimestamp(data['blockedAt']) : null,
-      cancelledAt: data['cancelledAt'] != null ? _parseTimestamp(data['cancelledAt']) : null,
-      // Límites
-      dailyLimit: data['dailyLimit']?.toDouble(),
-      monthlyLimit: data['monthlyLimit']?.toDouble(),
-      atmLimit: data['atmLimit']?.toDouble(),
-      onlineLimit: data['onlineLimit']?.toDouble(),
-      // Información de solicitud
-      requestReason: data['requestReason'] ?? '',
-      deliveryAddress: data['deliveryAddress'],
-      deliveryDistrict: data['deliveryDistrict'],
-      deliveryProvince: data['deliveryProvince'],
-      deliveryDepartment: data['deliveryDepartment'],
-      deliveryPhone: data['deliveryPhone'],
-      additionalComments: data['additionalComments'],
-      // Configuraciones de seguridad
-      isContactlessEnabled: data['isContactlessEnabled'],
-      isOnlineEnabled: data['isOnlineEnabled'],
-      isAtmEnabled: data['isAtmEnabled'],
-      isInternationalEnabled: data['isInternationalEnabled'],
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'userId': userId,
-      'accountId': accountId,
-      'microfinancieraId': microfinancieraId,
-      'cardNumber': cardNumber,
-      'cardType': cardType.name,
-      'cardBrand': cardBrand.name,
-      'holderName': holderName,
-      'expiryDate': Timestamp.fromDate(expiryDate),
-      'status': status.name,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
-      'activatedAt': activatedAt != null ? Timestamp.fromDate(activatedAt!) : null,
-      'blockedAt': blockedAt != null ? Timestamp.fromDate(blockedAt!) : null,
-      'cancelledAt': cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
-      // Límites
-      'dailyLimit': dailyLimit,
-      'monthlyLimit': monthlyLimit,
-      'atmLimit': atmLimit,
-      'onlineLimit': onlineLimit,
-      // Información de solicitud
-      'requestReason': requestReason,
-      'deliveryAddress': deliveryAddress,
-      'deliveryDistrict': deliveryDistrict,
-      'deliveryProvince': deliveryProvince,
-      'deliveryDepartment': deliveryDepartment,
-      'deliveryPhone': deliveryPhone,
-      'additionalComments': additionalComments,
-      // Configuraciones de seguridad
-      'isContactlessEnabled': isContactlessEnabled,
-      'isOnlineEnabled': isOnlineEnabled,
-      'isAtmEnabled': isAtmEnabled,
-      'isInternationalEnabled': isInternationalEnabled,
-    };
-  }
 
   Card copyWith({
     String? id,
@@ -270,16 +183,6 @@ class Card {
   bool get isInProduction => status == CardStatus.inProduction;
   
   bool get isDelivered => status == CardStatus.delivered;
-
-  static DateTime _parseTimestamp(dynamic timestamp) {
-    if (timestamp is Timestamp) {
-      return timestamp.toDate();
-    } else if (timestamp is DateTime) {
-      return timestamp;
-    } else {
-      return DateTime.now();
-    }
-  }
 }
 
 enum CardType {

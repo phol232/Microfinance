@@ -3,8 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
-import 'package:mobile/core/services/location_service.dart';
-import 'package:mobile/core/services/directions_service.dart';
+import 'package:mobile/infrastructure/services/location_service.dart';
+import 'package:mobile/infrastructure/services/directions_service.dart';
 
 class LocationMapScreen extends StatefulWidget {
   const LocationMapScreen({super.key});
@@ -21,10 +21,10 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
   bool _isLoadingUserLocation = false;
   bool _showingRoute = false;
   DirectionsResult? _currentRoute;
-  
-  // Coordenadas aproximadas de Jr. Tacna 340, Huancayo 12004
+  String _selectedMode = 'driving'; // driving | walking | transit | bicycling
+
   static const LatLng _companyLocation = LatLng(-12.0653, -75.2049);
-  
+
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
 
@@ -60,10 +60,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
   void _goToLocation() {
     mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
-        const CameraPosition(
-          target: _companyLocation,
-          zoom: 18.0,
-        ),
+        const CameraPosition(target: _companyLocation, zoom: 18.0),
       ),
     );
   }
@@ -75,9 +72,9 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
     });
 
     try {
-      // Verificar permisos y servicios de ubicación
-      LocationResult result = await LocationService.getCurrentLocationWithCheck();
-      
+      LocationResult result =
+          await LocationService.getCurrentLocationWithCheck();
+
       if (result.status == LocationStatus.enabled && result.data != null) {
         final locationData = result.data!;
         _currentUserLocation = Position(
@@ -92,7 +89,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
           speed: 0,
           speedAccuracy: 0,
         );
-        
+
         await _showRouteOnMap();
       } else {
         setState(() {
@@ -113,11 +110,16 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
   Future<void> _showRouteOnMap() async {
     if (_currentUserLocation == null) return;
 
-    // Agregar marcador de ubicación actual
+    _polylines.removeWhere((p) => p.polylineId.value == 'route');
+    _markers.removeWhere((marker) => marker.markerId.value == 'user_location');
+
     _markers.add(
       Marker(
         markerId: const MarkerId('user_location'),
-        position: LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
+        position: LatLng(
+          _currentUserLocation!.latitude,
+          _currentUserLocation!.longitude,
+        ),
         infoWindow: const InfoWindow(
           title: 'Tu ubicación',
           snippet: 'Ubicación actual',
@@ -129,15 +131,17 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
     // Obtener la ruta real usando Google Directions API
     try {
       final directionsResult = await DirectionsService.getDirectionsWithDetails(
-        origin: LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
+        origin: LatLng(
+          _currentUserLocation!.latitude,
+          _currentUserLocation!.longitude,
+        ),
         destination: _companyLocation,
-        travelMode: 'driving',
+        travelMode: _selectedMode,
       );
 
       if (directionsResult != null && directionsResult.points.isNotEmpty) {
         _currentRoute = directionsResult;
-        
-        // Crear polyline con la ruta real
+
         _polylines.add(
           Polyline(
             polylineId: const PolylineId('route'),
@@ -148,7 +152,6 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
           ),
         );
 
-        // Calcular bounds para incluir toda la ruta
         double minLat = directionsResult.points.first.latitude;
         double maxLat = directionsResult.points.first.latitude;
         double minLng = directionsResult.points.first.longitude;
@@ -174,23 +177,26 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
           _showingRoute = true;
         });
 
-        // Mostrar mensaje de éxito con información de la ruta
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Ruta calculada: ${directionsResult.distance} - ${directionsResult.duration}'),
+              content: Text(
+                'Ruta calculada: ${directionsResult.distance} - ${directionsResult.duration}',
+              ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
             ),
           );
         }
       } else {
-        // Si no se puede obtener la ruta, usar línea recta como fallback
         _polylines.add(
           Polyline(
             polylineId: const PolylineId('route'),
             points: [
-              LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
+              LatLng(
+                _currentUserLocation!.latitude,
+                _currentUserLocation!.longitude,
+              ),
               _companyLocation,
             ],
             color: AppColors.primary,
@@ -199,22 +205,21 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
           ),
         );
 
-        // Ajustar la cámara para mostrar ambos puntos
         LatLngBounds bounds = LatLngBounds(
           southwest: LatLng(
-            _currentUserLocation!.latitude < _companyLocation.latitude 
-                ? _currentUserLocation!.latitude 
+            _currentUserLocation!.latitude < _companyLocation.latitude
+                ? _currentUserLocation!.latitude
                 : _companyLocation.latitude,
-            _currentUserLocation!.longitude < _companyLocation.longitude 
-                ? _currentUserLocation!.longitude 
+            _currentUserLocation!.longitude < _companyLocation.longitude
+                ? _currentUserLocation!.longitude
                 : _companyLocation.longitude,
           ),
           northeast: LatLng(
-            _currentUserLocation!.latitude > _companyLocation.latitude 
-                ? _currentUserLocation!.latitude 
+            _currentUserLocation!.latitude > _companyLocation.latitude
+                ? _currentUserLocation!.latitude
                 : _companyLocation.latitude,
-            _currentUserLocation!.longitude > _companyLocation.longitude 
-                ? _currentUserLocation!.longitude 
+            _currentUserLocation!.longitude > _companyLocation.longitude
+                ? _currentUserLocation!.longitude
                 : _companyLocation.longitude,
           ),
         );
@@ -230,7 +235,9 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Ruta directa mostrada (no se pudo calcular ruta por calles)'),
+              content: Text(
+                'Ruta directa mostrada (no se pudo calcular ruta por calles)',
+              ),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 3),
             ),
@@ -239,12 +246,14 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
       }
     } catch (e) {
       print('Error al obtener direcciones: $e');
-      // Fallback a línea recta en caso de error
       _polylines.add(
         Polyline(
           polylineId: const PolylineId('route'),
           points: [
-            LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
+            LatLng(
+              _currentUserLocation!.latitude,
+              _currentUserLocation!.longitude,
+            ),
             _companyLocation,
           ],
           color: AppColors.primary,
@@ -271,7 +280,9 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
 
   void _clearRoute() {
     setState(() {
-      _markers.removeWhere((marker) => marker.markerId.value == 'user_location');
+      _markers.removeWhere(
+        (marker) => marker.markerId.value == 'user_location',
+      );
       _polylines.clear();
       _showingRoute = false;
       _currentUserLocation = null;
@@ -280,12 +291,20 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
     _goToLocation();
   }
 
+  void _onModeSelected(String mode) async {
+    if (_selectedMode == mode) return;
+    setState(() => _selectedMode = mode);
+    if (_currentUserLocation != null) {
+      await _showRouteOnMap();
+    }
+  }
+
   void _openNavigationInGoogleMaps() async {
     if (_currentUserLocation == null) {
-      // Si no tenemos ubicación actual, abrir Google Maps con destino solamente
       const String address = "Jr. Tacna 340, Huancayo 12004";
-      final String googleMapsUrl = "https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address)}";
-      
+      final String googleMapsUrl =
+          "https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address)}&travelmode=$_selectedMode";
+
       try {
         final Uri uri = Uri.parse(googleMapsUrl);
         if (await canLaunchUrl(uri)) {
@@ -303,8 +322,9 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
       }
     } else {
       // Si tenemos ubicación actual, abrir con navegación completa
-      final String googleMapsUrl = "https://www.google.com/maps/dir/${_currentUserLocation!.latitude},${_currentUserLocation!.longitude}/${_companyLocation.latitude},${_companyLocation.longitude}";
-      
+      final String googleMapsUrl =
+          "https://www.google.com/maps/dir/${_currentUserLocation!.latitude},${_currentUserLocation!.longitude}/${_companyLocation.latitude},${_companyLocation.longitude}?travelmode=$_selectedMode";
+
       try {
         final Uri uri = Uri.parse(googleMapsUrl);
         if (await canLaunchUrl(uri)) {
@@ -332,10 +352,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
       appBar: AppBar(
         title: const Text(
           'Nuestra Ubicación',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -368,7 +385,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
             trafficEnabled: false,
             buildingsEnabled: true,
           ),
-          
+
           // Indicador de carga
           if (_isMapLoading)
             Container(
@@ -381,16 +398,13 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                     SizedBox(height: 16),
                     Text(
                       'Cargando mapa...',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
             ),
-          
+
           // Información de la ubicación
           Positioned(
             top: 16,
@@ -441,10 +455,22 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                       color: Colors.grey[600],
                     ),
                   ),
+                  SizedBox(height: screenHeight * 0.01),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    _buildModeChip('driving', Icons.directions_car, 'Auto'),
+                    _buildModeChip('walking', Icons.directions_walk, 'A pie'),
+                  ],
+                ),
                   if (_showingRoute) ...[
                     SizedBox(height: screenHeight * 0.01),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.shade50,
                         borderRadius: BorderRadius.circular(8),
@@ -457,7 +483,11 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.route, color: Colors.green.shade700, size: 16),
+                              Icon(
+                                Icons.route,
+                                color: Colors.green.shade700,
+                                size: 16,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Ruta calculada',
@@ -473,7 +503,11 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(Icons.straighten, color: Colors.green.shade600, size: 14),
+                                Icon(
+                                  Icons.straighten,
+                                  color: Colors.green.shade600,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _currentRoute!.distance,
@@ -484,7 +518,11 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Icon(Icons.access_time, color: Colors.green.shade600, size: 14),
+                                Icon(
+                                  Icons.access_time,
+                                  color: Colors.green.shade600,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _currentRoute!.duration,
@@ -504,7 +542,10 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                   if (_errorMessage != null) ...[
                     SizedBox(height: screenHeight * 0.01),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.shade50,
                         borderRadius: BorderRadius.circular(8),
@@ -512,7 +553,11 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error, color: Colors.red.shade700, size: 16),
+                          Icon(
+                            Icons.error,
+                            color: Colors.red.shade700,
+                            size: 16,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -531,7 +576,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
               ),
             ),
           ),
-          
+
           // Botones de acción
           Positioned(
             bottom: 20,
@@ -542,15 +587,19 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                 // Botón "Cómo llegar"
                 FloatingActionButton.extended(
                   heroTag: "show_route",
-                  onPressed: _isLoadingUserLocation ? null : _getCurrentLocationAndShowRoute,
+                  onPressed: _isLoadingUserLocation
+                      ? null
+                      : _getCurrentLocationAndShowRoute,
                   backgroundColor: Colors.orange,
-                  icon: _isLoadingUserLocation 
+                  icon: _isLoadingUserLocation
                       ? const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Icon(Icons.directions, color: Colors.white),
@@ -559,31 +608,25 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                
+
                 SizedBox(height: screenHeight * 0.01),
-                
+
                 // Botón para centrar en la ubicación
                 FloatingActionButton(
                   heroTag: "center_location",
                   onPressed: _goToLocation,
                   backgroundColor: AppColors.primary,
-                  child: const Icon(
-                    Icons.my_location,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.my_location, color: Colors.white),
                 ),
-                
+
                 SizedBox(height: screenHeight * 0.01),
-                
+
                 // Botón para abrir en Google Maps
                 FloatingActionButton(
                   heroTag: "open_google_maps",
                   onPressed: _openNavigationInGoogleMaps,
                   backgroundColor: Colors.green,
-                  child: const Icon(
-                    Icons.navigation,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.navigation, color: Colors.white),
                 ),
               ],
             ),
@@ -593,33 +636,26 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
     );
   }
 
-  void _openInGoogleMaps() async {
-    const String address = "Jr. Tacna 340, Huancayo 12004";
-    final String googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}";
-    
-    try {
-      final Uri uri = Uri.parse(googleMapsUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No se pudo abrir Google Maps'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al abrir Google Maps'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+  Widget _buildModeChip(String mode, IconData icon, String label) {
+    final bool selected = _selectedMode == mode;
+    return ChoiceChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: selected ? Colors.white : Colors.black87),
+          const SizedBox(width: 4),
+          Text(label),
+        ],
+      ),
+      selected: selected,
+      onSelected: (_) => _onModeSelected(mode),
+      selectedColor: AppColors.primary,
+      backgroundColor: Colors.grey.shade200,
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : Colors.black87,
+        fontWeight: FontWeight.w600,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    );
   }
 }

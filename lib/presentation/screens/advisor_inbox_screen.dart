@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 
 class AdvisorInboxScreen extends StatefulWidget {
   final String microfinancieraId;
@@ -22,12 +21,18 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
   late TabController _tabController;
   // TODO: Declarar bloc cuando esté correctamente configurado
   // late final AdvisorInboxBloc _bloc;
-  final List<String> _statusTabs = ['received', 'routed', 'in_review', 'approved', 'rejected'];
+  final List<String> _statusTabs = [
+    'received',
+    'routed',
+    'in_review',
+    'approved',
+    'rejected',
+  ];
 
   @override
   void initState() {
     super.initState();
-    
+
     // TODO: Implementar inyección de dependencias correcta para los casos de uso
     // Por ahora, comentamos la inicialización del bloc para evitar errores de compilación
     // _bloc = AdvisorInboxBloc(
@@ -38,17 +43,12 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
     //   getApplicationStatsUseCase: GetApplicationStatsUseCase(repository),
     //   getAgentStatsUseCase: GetAgentStatsUseCase(repository),
     // );
-    
-    _tabController = TabController(
-      length: _statusTabs.length,
-      vsync: this,
-    );
+
+    _tabController = TabController(length: _statusTabs.length, vsync: this);
 
     // TODO: Cargar datos iniciales cuando el bloc esté correctamente inicializado
     // _loadInitialData();
   }
-
-
 
   @override
   void dispose() {
@@ -60,11 +60,12 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bandeja de Entrada'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -74,29 +75,26 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
           ),
         ],
       ),
-      body: const Center(
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.construction,
               size: 64,
-              color: Colors.grey,
+              color: colorScheme.onSurfaceVariant,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Pantalla en construcción',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 18, color: colorScheme.onSurface),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'Se requiere implementar inyección de dependencias',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -107,13 +105,14 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
 
   // TODO: Implementar métodos cuando el bloc esté correctamente configurado
   /*
-  Widget _buildStatsSection() {
+  Widget _buildStatsSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return BlocBuilder<AdvisorInboxBloc, AdvisorInboxState>(
       builder: (context, state) {
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: colorScheme.surfaceContainerHighest,
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(16),
               bottomRight: Radius.circular(16),
@@ -122,10 +121,10 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildStatCard('Asignadas', state.inReviewCount, AppColors.primary),
-              _buildStatCard('Disponibles', state.routedCount, Colors.orange),
-              _buildStatCard('Aprobadas', state.approvedCount, Colors.green),
-              _buildStatCard('Rechazadas', state.rejectedCount, Colors.red),
+              _buildStatCard('Asignadas', state.inReviewCount, colorScheme.primary, context),
+              _buildStatCard('Disponibles', state.routedCount, const Color(0xFFFF9800), context),
+              _buildStatCard('Aprobadas', state.approvedCount, const Color(0xFF4CAF50), context),
+              _buildStatCard('Rechazadas', state.rejectedCount, colorScheme.error, context),
             ],
           ),
         );
@@ -133,7 +132,7 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
     );
   }
 
-  Widget _buildStatCard(String title, int count, Color color) {
+  Widget _buildStatCard(String title, int count, Color color, BuildContext context) {
     return Column(
       children: [
         Container(
@@ -157,9 +156,9 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
         const SizedBox(height: 4),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: Colors.grey,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -202,6 +201,7 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
   }
 
   Widget _buildEmptyState(String status) {
+    final colorScheme = Theme.of(context).colorScheme;
     String message;
     IconData icon;
 
@@ -238,14 +238,14 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
           Icon(
             icon,
             size: 64,
-            color: Colors.grey[400],
+            color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             message,
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey[600],
+              color: colorScheme.onSurface,
             ),
           ),
         ],
@@ -254,6 +254,7 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
   }
 
   Widget _buildApplicationCard(LoanApplication application) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: ListTile(
@@ -261,8 +262,8 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
           backgroundColor: _getStatusColor(application.status),
           child: Text(
             application.personalInfo?.firstName.substring(0, 1).toUpperCase() ?? '?',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: colorScheme.onPrimary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -280,7 +281,7 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
             if (application.routing?.agentId != null)
               Text(
                 'Asignado a: ${application.routing!.agentId}',
-                style: TextStyle(color: Colors.blue[600]),
+                style: TextStyle(color: colorScheme.primary),
               ),
           ],
         ),
@@ -292,6 +293,7 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
   }
 
   Widget _buildTrailingActions(LoanApplication application) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (application.status == 'routed' && application.routing?.agentId == null) {
       return BlocBuilder<AdvisorInboxBloc, AdvisorInboxState>(
         builder: (context, state) {
@@ -302,7 +304,7 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : IconButton(
-                  icon: const Icon(Icons.assignment, color: AppColors.primary),
+                  icon: Icon(Icons.assignment, color: colorScheme.primary),
                   onPressed: () => _showTakeOwnershipDialog(application),
                 );
         },
@@ -316,19 +318,20 @@ class _AdvisorInboxScreenState extends State<AdvisorInboxScreen>
   }
 
   Color _getStatusColor(String status) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (status) {
       case 'received':
-        return Colors.blue;
+        return colorScheme.primary;
       case 'routed':
-        return Colors.orange;
+        return const Color(0xFFFF9800); // Warning orange
       case 'in_review':
-        return AppColors.primary;
+        return colorScheme.primary;
       case 'approved':
-        return Colors.green;
+        return const Color(0xFF4CAF50); // Success green
       case 'rejected':
-        return Colors.red;
+        return colorScheme.error;
       default:
-        return Colors.grey;
+        return colorScheme.onSurfaceVariant;
     }
   }
 

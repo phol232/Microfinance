@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
@@ -23,9 +22,11 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     final buttonStyle = ElevatedButton.styleFrom(
-      backgroundColor: AppColors.primary,
-      foregroundColor: AppColors.onPrimary,
+      backgroundColor: colorScheme.primary,
+      foregroundColor: colorScheme.onPrimary,
       minimumSize: Size(
         fullWidth ? double.infinity : 0,
         AppSpacing.minButtonHeight,
@@ -46,10 +47,13 @@ class PrimaryButton extends StatelessWidget {
       return ElevatedButton(
         onPressed: null,
         style: buttonStyle,
-        child: const SizedBox(
+        child: SizedBox(
           height: 20,
           width: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: colorScheme.onPrimary,
+          ),
         ),
       );
     }
@@ -61,7 +65,9 @@ class PrimaryButton extends StatelessWidget {
         icon: Icon(icon),
         label: Text(
           text,
-          style: AppTypography.labelLarge.copyWith(color: AppColors.onPrimary),
+          style: AppTypography.labelLarge.copyWith(
+            color: colorScheme.onPrimary,
+          ),
         ),
       );
     }
@@ -71,7 +77,7 @@ class PrimaryButton extends StatelessWidget {
       style: buttonStyle,
       child: Text(
         text,
-        style: AppTypography.labelLarge.copyWith(color: AppColors.onPrimary),
+        style: AppTypography.labelLarge.copyWith(color: colorScheme.onPrimary),
       ),
     );
   }

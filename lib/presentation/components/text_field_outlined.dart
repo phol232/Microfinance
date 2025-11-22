@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
@@ -66,12 +65,16 @@ class _TextFieldOutlinedState extends State<TextFieldOutlined> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.label,
-          style: AppTypography.labelLarge.copyWith(color: AppColors.onSurface),
+          style: AppTypography.labelLarge.copyWith(
+            color: colorScheme.onSurface,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
@@ -95,35 +98,37 @@ class _TextFieldOutlinedState extends State<TextFieldOutlined> {
             helperText: widget.helperText,
             filled: true,
             fillColor: widget.enabled
-                ? AppColors.surfaceVariant
-                : AppColors.outline.withOpacity(0.1),
+                ? colorScheme.surfaceContainerHighest
+                : colorScheme.outline.withOpacity(0.1),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.lg,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              borderSide: const BorderSide(color: AppColors.outline),
+              borderSide: BorderSide(color: colorScheme.outline),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              borderSide: const BorderSide(color: AppColors.outline),
+              borderSide: BorderSide(color: colorScheme.outline),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: BorderSide(color: colorScheme.primary, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              borderSide: const BorderSide(color: AppColors.error),
+              borderSide: BorderSide(color: colorScheme.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              borderSide: const BorderSide(color: AppColors.error, width: 2),
+              borderSide: BorderSide(color: colorScheme.error, width: 2),
             ),
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              borderSide: BorderSide(color: AppColors.outline.withOpacity(0.5)),
+              borderSide: BorderSide(
+                color: colorScheme.outline.withOpacity(0.5),
+              ),
             ),
             prefixIcon: widget.prefixIcon,
             suffixIcon: widget.obscureText
@@ -132,7 +137,7 @@ class _TextFieldOutlinedState extends State<TextFieldOutlined> {
                       _isObscured
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
-                      color: AppColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                       semanticLabel: _isObscured
                           ? 'Mostrar contraseña'
                           : 'Ocultar contraseña',
@@ -145,19 +150,19 @@ class _TextFieldOutlinedState extends State<TextFieldOutlined> {
                   )
                 : widget.suffixIcon,
             labelStyle: AppTypography.bodyMedium.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
             hintStyle: AppTypography.bodyMedium.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
             errorStyle: AppTypography.bodySmall.copyWith(
-              color: AppColors.error,
+              color: colorScheme.error,
             ),
           ),
           style: AppTypography.bodyMedium.copyWith(
             color: widget.enabled
-                ? AppColors.onSurface
-                : AppColors.onSurfaceVariant,
+                ? colorScheme.onSurface
+                : colorScheme.onSurfaceVariant,
           ),
         ),
       ],

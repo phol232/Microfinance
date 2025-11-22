@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/logging/app_logger.dart';
 
 class LoanApplication {
@@ -62,12 +61,10 @@ class LoanApplication {
     required this.updatedAt,
   });
 
-  factory LoanApplication.fromFirestore(DocumentSnapshot doc) {
+  factory LoanApplication.fromMap(String id, Map<String, dynamic> data) {
     try {
-      final data = doc.data() as Map<String, dynamic>;
-
       return LoanApplication(
-        id: doc.id,
+        id: id,
         userId: data['userId'] ?? '',
         microfinancieraId: data['microfinancieraId'] ?? '',
         product: data['product'] != null
@@ -115,8 +112,8 @@ class LoanApplication {
                 data['validations'] as Map<String, dynamic>,
               )
             : null,
-        createdAt: _parseTimestamp(data['createdAt']),
-        updatedAt: _parseTimestamp(data['updatedAt']),
+        createdAt: _parseDate(data['createdAt']),
+        updatedAt: _parseDate(data['updatedAt']),
       );
     } catch (e) {
       AppLogger.error('Error parsing LoanApplication from Firestore', tag: 'LoanApplication', error: e);
@@ -124,14 +121,16 @@ class LoanApplication {
     }
   }
 
-  static DateTime _parseTimestamp(dynamic value) {
-    if (value == null) return DateTime.now();
-    if (value is Timestamp) return value.toDate();
+  static DateTime _parseDate(dynamic value) {
     if (value is DateTime) return value;
-    return DateTime.now();
+    try {
+      final result = value?.toDate();
+      if (result is DateTime) return result;
+    } catch (_) {}
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toMap() {
     return {
       'userId': userId,
       'microfinancieraId': microfinancieraId,
@@ -148,8 +147,8 @@ class LoanApplication {
       if (scoring != null) 'scoring': scoring!.toMap(),
       if (decision != null) 'decision': decision!.toMap(),
       if (validations != null) 'validations': validations!.toMap(),
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
     };
   }
 }
@@ -173,7 +172,7 @@ class RoutingInfo {
       branchId: map['branchId'] ?? '',
       agentId: map['agentId'],
       assignedAt: map['assignedAt'] != null
-          ? (map['assignedAt'] as Timestamp).toDate()
+          ? LoanApplication._parseDate(map['assignedAt'])
           : null,
       district: map['district'] ?? '',
     );
@@ -183,7 +182,7 @@ class RoutingInfo {
     return {
       'branchId': branchId,
       if (agentId != null) 'agentId': agentId,
-      if (assignedAt != null) 'assignedAt': Timestamp.fromDate(assignedAt!),
+      if (assignedAt != null) 'assignedAt': assignedAt,
       'district': district,
     };
   }
@@ -211,7 +210,7 @@ class ScoringResult {
       band: map['band'] ?? 'D',
       reasonCodes: List<String>.from(map['reasonCodes'] ?? []),
       modelVersion: map['modelVersion'] ?? '1.0',
-      calculatedAt: (map['calculatedAt'] as Timestamp).toDate(),
+      calculatedAt: LoanApplication._parseDate(map['calculatedAt']),
     );
   }
 
@@ -221,7 +220,7 @@ class ScoringResult {
       'band': band,
       'reasonCodes': reasonCodes,
       'modelVersion': modelVersion,
-      'calculatedAt': Timestamp.fromDate(calculatedAt),
+      'calculatedAt': calculatedAt,
     };
   }
 }
@@ -247,7 +246,7 @@ class DecisionInfo {
       result: map['result'] ?? 'pending',
       decidedBy: map['decidedBy'],
       decidedAt: map['decidedAt'] != null
-          ? (map['decidedAt'] as Timestamp).toDate()
+          ? LoanApplication._parseDate(map['decidedAt'])
           : null,
       comments: map['comments'] ?? '',
       isAutomatic: map['isAutomatic'] ?? false,
@@ -258,7 +257,7 @@ class DecisionInfo {
     return {
       'result': result,
       if (decidedBy != null) 'decidedBy': decidedBy,
-      if (decidedAt != null) 'decidedAt': Timestamp.fromDate(decidedAt!),
+      if (decidedAt != null) 'decidedAt': decidedAt,
       'comments': comments,
       'isAutomatic': isAutomatic,
     };
@@ -311,7 +310,10 @@ class LocationData {
 
   static DateTime _parseTimestamp(dynamic value) {
     if (value == null) return DateTime.now();
-    if (value is Timestamp) return value.toDate();
+    try {
+      final result = value?.toDate();
+      if (result is DateTime) return result;
+    } catch (_) {}
     if (value is DateTime) return value;
     return DateTime.now();
   }
@@ -320,7 +322,7 @@ class LocationData {
     return {
       'latitude': latitude,
       'longitude': longitude,
-      'timestamp': Timestamp.fromDate(timestamp),
+      'timestamp': timestamp,
     };
   }
 }

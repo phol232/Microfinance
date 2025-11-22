@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/transaction.dart';
+import '../models/transaction_dto.dart';
 
 class TransactionDatasource {
   final FirebaseFirestore _firestore;
@@ -38,7 +39,7 @@ class TransactionDatasource {
         .add(transactionData);
 
     final doc = await docRef.get();
-    return FinancialTransaction.fromFirestore(doc);
+    return FinancialTransactionDto.fromFirestore(doc).toDomain();
   }
 
   Future<List<FinancialTransaction>> getTransactions({
@@ -83,7 +84,7 @@ class TransactionDatasource {
 
     final snapshot = await query.get();
     return snapshot.docs
-        .map((doc) => FinancialTransaction.fromFirestore(doc))
+        .map((doc) => FinancialTransactionDto.fromFirestore(doc).toDomain())
         .toList();
   }
 
@@ -99,10 +100,9 @@ class TransactionDatasource {
         .get();
 
     if (!doc.exists) return null;
-    return FinancialTransaction.fromFirestore(doc);
+    return FinancialTransactionDto.fromFirestore(doc).toDomain();
   }
 
-  /// Calcula el saldo de una cuenta basado en las transacciones
   Future<double> calculateAccountBalance({
     required String mfId,
     required String accountId,
@@ -131,8 +131,6 @@ class TransactionDatasource {
 
     final data = accountDoc.data()!;
 
-    // El balance en Firestore ya está actualizado con todas las transacciones
-    // No necesitamos recalcular sumando las transacciones de nuevo
     final balance = (data['balance'] as num?)?.toDouble();
     final initialDeposit = (data['initialDeposit'] as num?)?.toDouble();
 
@@ -145,7 +143,6 @@ class TransactionDatasource {
     return currentBalance;
   }
 
-  /// Actualiza el saldo de una cuenta en tiempo real
   Future<void> updateAccountBalance({
     required String mfId,
     required String accountId,
@@ -162,7 +159,6 @@ class TransactionDatasource {
         });
   }
 
-  /// Ejecuta una transacción atómica (para pagos que requieren múltiples operaciones)
   Future<List<FinancialTransaction>> executeAtomicTransaction({
     required String mfId,
     required List<Map<String, dynamic>> transactionData,
@@ -172,7 +168,6 @@ class TransactionDatasource {
     final batch = _firestore.batch();
     final List<DocumentReference> transactionRefs = [];
 
-    // Crear las transacciones
     for (final data in transactionData) {
       final ref = _firestore
           .collection('microfinancieras')
@@ -185,7 +180,6 @@ class TransactionDatasource {
       transactionRefs.add(ref);
     }
 
-    // Actualizar el saldo de la cuenta
     final accountRef = _firestore
         .collection('microfinancieras')
         .doc(mfId)
@@ -197,24 +191,21 @@ class TransactionDatasource {
       'lastUpdated': FieldValue.serverTimestamp(),
     });
 
-    // Ejecutar la transacción atómica
     await batch.commit();
 
-    // Obtener las transacciones creadas
     final List<FinancialTransaction> createdTransactions = [];
     for (final ref in transactionRefs) {
       final doc = await ref.get();
       createdTransactions.add(
-        FinancialTransaction.fromFirestore(
+        FinancialTransactionDto.fromFirestore(
           doc as DocumentSnapshot<Map<String, dynamic>>,
-        ),
+        ).toDomain(),
       );
     }
 
     return createdTransactions;
   }
 
-  /// Actualiza el status de una cuota después de un pago exitoso
   Future<void> updateInstallmentStatus({
     required String mfId,
     required String loanId,

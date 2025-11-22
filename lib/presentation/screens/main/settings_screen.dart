@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
@@ -21,6 +22,154 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   // TODO: Implementar notificaciones más adelante
   // bool _notifications = true;
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        final version = info.version;
+        final build = info.buildNumber;
+        final display = build.isNotEmpty && build != version
+            ? '$version+$build'
+            : version;
+        setState(() {
+          _appVersion = display;
+        });
+      }
+    } catch (_) {
+      // En caso de fallo, dejamos cadena vacía
+    }
+  }
+
+  void _showSupportSheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: colorScheme.primary.withOpacity(0.1),
+                    child: Icon(Icons.support_agent, color: colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Soporte Técnico',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _supportRow(
+                icon: Icons.person_outline,
+                label: 'Nombre',
+                value: 'Phol Edwin Taquiri Rojas',
+                colorScheme: colorScheme,
+              ),
+              _supportRow(
+                icon: Icons.email_outlined,
+                label: 'Correo',
+                value: 'edwinrojastaquiri@gmail.com',
+                colorScheme: colorScheme,
+              ),
+              _supportRow(
+                icon: Icons.phone_outlined,
+                label: 'Teléfono',
+                value: '934866486',
+                colorScheme: colorScheme,
+              ),
+              if (_appVersion.isNotEmpty) ...[
+                _supportRow(
+                  icon: Icons.info_outline,
+                  label: 'Versión',
+                  value: _appVersion,
+                  colorScheme: colorScheme,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _supportRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required ColorScheme colorScheme,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: colorScheme.primary, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,14 +289,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Preguntas Frecuentes',
                   subtitle: 'Encuentra respuestas rápidas',
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Próximamente disponible'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                  onTap: () => _showSupportSheet(context),
                 ),
               ],
             ),
@@ -187,8 +329,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 _buildListTile(
                   icon: Icons.info_outlined,
-                  title: 'Versión de la App',
-                  subtitle: '1.0.0',
+                  title: 'Versión',
+                  subtitle: _appVersion.isEmpty ? null : _appVersion,
                   trailing: null,
                   onTap: null,
                 ),
@@ -275,7 +417,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 2),
                         Text(
                           'DNI: ${profile.dni}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
                         ),
                       ],
                     ],

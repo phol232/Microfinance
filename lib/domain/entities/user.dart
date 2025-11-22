@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 /// Representa un usuario en la nueva estructura de la base de datos
 /// Este usuario está asociado a una microfinanciera específica
 class User {
@@ -29,44 +27,6 @@ class User {
   final DateTime createdAt;
   final DateTime? lastLoginAt;
 
-  factory User.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? <String, dynamic>{};
-    return User(
-      id: doc.id,
-      userId: data['userId'] ?? '',
-      microfinancieraId: data['mfId'] ?? '',
-      email: data['email'],
-      displayName: data['displayName'],
-      photoUrl: data['photoUrl'],
-      linkedProviders: data['linkedProviders'] != null
-          ? List<String>.from((data['linkedProviders'] as Iterable))
-          : const <String>[],
-      roles: data['roles'] != null
-          ? List<String>.from((data['roles'] as Iterable))
-          : const <String>[],
-      status: data['status'] ?? 'pending',
-      createdAt: parseTimestamp(data['createdAt']),
-      lastLoginAt: data['lastLoginAt'] != null
-          ? parseTimestamp(data['lastLoginAt'])
-          : null,
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'userId': userId,
-      'mfId': microfinancieraId,
-      if (email != null) 'email': email,
-      if (displayName != null) 'displayName': displayName,
-      if (photoUrl != null) 'photoUrl': photoUrl,
-      'linkedProviders': linkedProviders,
-      'roles': roles,
-      'status': status,
-      'createdAt': Timestamp.fromDate(createdAt),
-      if (lastLoginAt != null) 'lastLoginAt': Timestamp.fromDate(lastLoginAt!),
-    };
-  }
-
   User copyWith({
     String? id,
     String? userId,
@@ -94,11 +54,30 @@ class User {
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
     );
   }
-}
 
-/// Función helper para parsear timestamps de Firestore
-DateTime parseTimestamp(dynamic value) {
-  if (value is Timestamp) return value.toDate();
-  if (value is DateTime) return value;
-  return DateTime.fromMillisecondsSinceEpoch(0);
+  factory User.fromMap(String id, Map<String, dynamic> data) {
+    return User(
+      id: id,
+      userId: data['userId'] ?? '',
+      microfinancieraId: data['mfId'] ?? '',
+      email: data['email'],
+      displayName: data['displayName'],
+      photoUrl: data['photoUrl'],
+      linkedProviders: data['linkedProviders'] != null
+          ? List<String>.from((data['linkedProviders'] as Iterable))
+          : const <String>[],
+      roles: data['roles'] != null
+          ? List<String>.from((data['roles'] as Iterable))
+          : const <String>[],
+      status: data['status'] ?? 'pending',
+      createdAt: _parseDate(data['createdAt']),
+      lastLoginAt:
+          data['lastLoginAt'] != null ? _parseDate(data['lastLoginAt']) : null,
+    );
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value is DateTime) return value;
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
 }

@@ -7,27 +7,26 @@ El árbol principal ya intenta replicar una arquitectura limpia (`config`, `core
 ## 2. Observaciones por capa
 
 ### Dominio (`domain/`)
-- **Entidades acopladas a Firestore**: tanto `domain/entities/account.dart` como `domain/entities/user.dart` importan `cloud_firestore` y exponen `fromFirestore`/`toFirestore`, por lo que dependen de infraestructuras concretas y de `Timestamp`. El dominio deja de ser puro y obliga a que cualquier cambio en la base de datos impacte a la capa más alta.
-- **Casos de uso inconsistentes**: existen interfaces base (`domain/usecases/core/usecase.dart`), pero varios BLoCs invocan repositorios concretos sin pasar por un `UseCase` (p. ej. actualización y borrado de cuentas en `presentation/bloc/account/account_bloc.dart`). Además, los casos de uso retornan entidades o listas sin envolver errores en `Either`/`Result`, dejando los fallos como excepciones genéricas.
+- **Entidades acopladas a Firestore**: se migraron `account`, `user`, `card`, `financial_transaction` y `loan_application` a DTOs en `data/models`, retirando `cloud_firestore` del dominio. Aún quedan entidades con `fromFirestore` para completar.
+- **Casos de uso inconsistentes**: la base `domain/usecases/core/usecase.dart` ahora retorna `Either<Failure, T>` y `AccountBloc`/`CardBloc` consumen exclusivamente casos de uso. Otros BLoCs siguen invocando repositorios o servicios concretos sin pasar por un `UseCase`.
 - **Errores declarados pero no utilizados**: `domain/core/error/failures.dart` define jerarquía de errores, sin embargo el flujo termina propagando excepciones de Firebase/HTTP desde la capa de datos.
 
 ### Datos (`data/`)
-- **DataSources remotos**: la carpeta `data/datasources` contiene clases específicas de Firebase (`AccountDataSource`, `LoanApplicationDataSource`, etc.) que mezclan consultas, mapeo y reglas de negocio menores. Al no existir DTOs ni mappers dedicados (excepto `app_user_mapper.dart`), los modelos de dominio se serializan directamente, duplicando lógica de conversión en las entidades.
-- **Dependencias hacia `core/tenant`**: varios data sources reciben `TenantResolver` que vive en `core/tenant`. Esto introduce una dependencia invertida (infra → core → Flutter) que debería resolverse con interfaces definidas en dominio/aplicación y adaptadores en infraestructura.
-- **Carpeta `data/services` vacía**: sugiere intención de aislar servicios adicionales, pero al estar vacía se pierde claridad sobre dónde extender la capa.
+- **DataSources remotos**: `AccountDataSource`, `LoanApplicationDataSource`, `CardDataSource` y `TransactionDatasource` usan DTOs dedicados, separando mapeo de dominio. Falta extender el patrón al resto de colecciones.
+- **Dependencias hacia `core/tenant`**: los data sources usan `domain/services/tenant_resolver.dart`, retirando la dependencia directa a `core`.
+- **Carpeta `data/services` vacía**: sigue sin contenido/documentación.
 
 ### Infraestructura (`infrastructure/`)
-- Sólo contiene `services/credit_product_service.dart`, el cual también habla directamente con Firestore y construye entidades de dominio. El resto de servicios con dependencias externas (HTTP, plataforma, almacenamiento seguro, etc.) se desplazan a `core/services` o incluso `presentation/services`. Esta carpeta no está cumpliendo su propósito de alojar implementaciones concretas.
+- `services/` concentra ahora los servicios concretos (ubicación, chatbot, biometría, carrito, transacciones, productos de crédito). Falta aislar dependencias externas detrás de interfaces de dominio/aplicación.
 
 ### Núcleo (`core/`)
-- `core/services` aloja clases como `TransactionService` y `ChatBotService`. La primera coordina casos de uso **y además** formatea montos para la UI y escribe trazas (`print`), lo que rompe el aislamiento entre dominio/aplicación/presentación. La segunda realiza llamadas HTTP (`package:http`) y obtiene su configuración desde `config/api_config.dart`, responsabilidad más propia de infraestructura.
-- `core/tenant/TenantController` extiende `ChangeNotifier` (dependencia de Flutter) pero también actúa como `TenantResolver`, siendo consumido incluso desde data sources. Este acoplamiento transversal dificulta testear e impide reutilizar la lógica fuera de Flutter.
-- `core/di` está vacío, por lo que la inyección de dependencias queda dispersa en `main.dart` y en constructores manuales.
+- `core/services` se eliminó en favor de `infrastructure/services`. `TenantController` sigue siendo `ChangeNotifier` y contenedor de estado de tenant; idealmente debería separarse implementación y contrato.
+- `core/di` ahora contiene `app_di.dart` con la construcción centralizada de repositorios/use cases.
 
 ### Presentación (`presentation/`)
-- Se usan BLoCs y Providers, pero el cableado de dependencias se hace en `main.dart` con creación manual de repositorios concretos (`AuthRepositoryImpl`, etc.), sin un contenedor o módulo de inyección reutilizable.
-- La carpeta `presentation/services` incluye clases como `CartService` que persisten datos (SharedPreferences) y notifican a la UI. Esta lógica pertenece al caso de uso/aplicación y debería exponerse mediante repositorios + use cases para mantener la UI pasiva.
-- Algunos widgets/blocs invocan directamente métodos de repositorio (`AccountRepository.updateAccount` o `getAccountsByStatus`) mezclando responsabilidades de aplicación y presentación.
+- El cableado se mueve a `core/di/app_di.dart`, consumido desde `main.dart`. Aún faltan módulos por contexto/feature.
+- `presentation/services` se eliminó; la UI ahora importa desde `infrastructure/services`, aunque sigue existiendo lógica de aplicación allí.
+- `AccountBloc` y `CardBloc` usan casos de uso con `Either`; otros widgets/blocs siguen llamando repositorios/servicios directamente.
 
 ### Configuración y scripts
 - `config/api_config.dart` elige URLs a partir de variables de entorno y `dart:io Platform`. El archivo está bien aislado, pero al estar en la raíz de `lib/` se importa desde cualquier capa, lo cual puede provocar que dominio/infra dependan implícitamente del entorno de Flutter.
@@ -35,13 +34,13 @@ El árbol principal ya intenta replicar una arquitectura limpia (`config`, `core
 
 ## 3. Principales brechas frente a Clean Architecture
 
-1. **Dominio no es independiente**: Entidades y casos de uso dependen de Firestore y Flutter (`cloud_firestore`, `Timestamp`, `ChangeNotifier`). Esto impide reutilizar la lógica y rompe la regla de “inner layers know nothing about outer layers”.
-2. **Ausencia de DTOs/mappers dedicados**: Las clases de dominio se encargan de serializar y deserializar. En una arquitectura limpia, los data sources deberían mapear DTOs ↔ entidades para que el dominio desconozca el backend.
-3. **Servicios fuera de lugar**: `core/services/*` y `presentation/services/*` contienen lógica de aplicación (procesos de pago, carrito, chatbot) y detalles de infraestructura (HTTP, SharedPreferences). Estas clases deberían vivir en módulos de aplicación/infrastructure y exponerse mediante interfaces al resto del sistema.
-4. **Inyección de dependencias incompleta**: `main.dart` (`apps/mobile/lib/main.dart`) crea instancias concretas dentro de la UI. La carpeta `core/di` está vacía y no hay configuración modular, lo que hace difícil testear, sustituir implementaciones o ejecutar en diferentes entornos.
-5. **Uso inconsistente de casos de uso**: Algunos BLoCs combinan repositorios y casos de uso (p. ej. `AccountBloc` usa `_accountRepository.updateAccount` directamente), lo que rompe la separación de responsabilidades y hace difícil centralizar reglas de negocio.
-6. **Capas con responsabilidades mezcladas**: `TenantController` (gestor multi-tenant) actúa a la vez como fuente de verdad para datos (almacenamiento), proveedor de contexto para data sources y `ChangeNotifier` para la UI. Este patrón produce dependencias circulares entre UI → core → data.
-7. **Capas infra/presentación escribiendo en almacenamiento**: `CartService` persiste datos locales desde la capa de presentación; lo mismo ocurre con las clases de Firebase dentro de `data`. Faltan repositorios locales o servicios específicos de infraestructura que puedan ser mockeados.
+1. **Dominio aún parcialmente dependiente**: Falta migrar las entidades restantes con `fromFirestore`/`toFirestore` a DTOs para aislar el dominio totalmente.
+2. **DTOs/mappers incompletos**: El patrón ya existe para cuentas, tarjetas, transacciones y aplicaciones de préstamo; debe extenderse a las colecciones restantes.
+3. **Servicios fuera de lugar**: Aunque se centralizaron en `infrastructure/services`, siguen mezclando reglas de negocio y dependencias externas. Se necesitan interfaces de dominio y casos de uso que los orquesten.
+4. **Inyección de dependencias incompleta**: `core/di/app_di.dart` centraliza dependencias, pero faltan módulos por feature y soporte de mocks/tests.
+5. **Uso inconsistente de casos de uso**: `AccountBloc` y `CardBloc` ya usan casos de uso con `Either<Failure, T>`, pero otros bloques/servicios aún llaman repositorios o servicios concretos.
+6. **Capas con responsabilidades mezcladas**: `TenantController` sigue combinando UI (`ChangeNotifier`) y resolución de tenant consumida por data sources; debe dividirse contrato/implementación.
+7. **Persistencia desde servicios UI**: Servicios como `CartService`/`PaymentCardService` siguen escribiendo almacenamiento sin pasar por repositorios/use cases; requieren refactor para facilitar tests y mocks.
 
 ## 4. Recomendaciones
 

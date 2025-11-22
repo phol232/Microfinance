@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreditProduct {
   final String id;
@@ -33,46 +32,6 @@ class CreditProduct {
     required this.createdAt,
     required this.updatedAt,
   });
-
-  // Factory constructor para crear desde Firestore
-  factory CreditProduct.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return CreditProduct(
-      id: doc.id,
-      name: data['name'] ?? '',
-      code: data['code'] ?? '',
-      mfId: data['mfId'] ?? '',
-      rateNominal: (data['rateNominal'] ?? 0).toDouble(),
-      interestType: data['interestType'] ?? 'flat',
-      amountMin: (data['amountMin'] ?? 0).toDouble(),
-      amountMax: (data['amountMax'] ?? 0).toDouble(),
-      termMin: data['termMin'] ?? 0,
-      termMax: data['termMax'] ?? 0,
-      fees: data['fees'] ?? {},
-      penalties: data['penalties'] ?? {},
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-    );
-  }
-
-  // Método para convertir a Map para Firestore
-  Map<String, dynamic> toFirestore() {
-    return {
-      'name': name,
-      'code': code,
-      'mfId': mfId,
-      'rateNominal': rateNominal,
-      'interestType': interestType,
-      'amountMin': amountMin,
-      'amountMax': amountMax,
-      'termMin': termMin,
-      'termMax': termMax,
-      'fees': fees,
-      'penalties': penalties,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-    };
-  }
 
   // Getters para mantener compatibilidad con el código existente
   String get formattedAmountRange => 
